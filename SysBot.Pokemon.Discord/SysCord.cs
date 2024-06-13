@@ -501,7 +501,7 @@ public sealed class SysCord<T> where T : PKM, new()
         if (!mgr.CanUseCommandChannel(msg.Channel.Id) && msg.Author.Id != mgr.Owner)
         {
             if (Hub.Config.Discord.ReplyCannotUseCommandInChannel)
-                await Channel.SendMessageAsync($"{msg.Author.Mention}, You are banned from using the bots! Contact the bot owner <@754156803906076712>!").ConfigureAwait(false);
+                await msg.Channel.SendMessageAsync($"{msg.Author.Mention}, You are banned from using the bots! Contact the bot owner <@754156803906076712>!").ConfigureAwait(false);
             return true;
         }
 
