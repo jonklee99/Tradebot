@@ -61,7 +61,6 @@ namespace SysBot.Pokemon
 
         public bool IsMysteryEgg { get; }
 
-        public bool IgnoreAutoOT { get; }
 
         public bool SetEdited { get; set; }
 
@@ -85,7 +84,6 @@ namespace SysBot.Pokemon
             TotalBatchTrades = totalBatchTrades;
             IsMysteryEgg = isMysteryEgg;
             UniqueTradeID = uniqueTradeID;
-            IgnoreAutoOT = ignoreAutoOT;
             SetEdited = setEdited;
         }
 
