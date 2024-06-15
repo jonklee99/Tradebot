@@ -338,7 +338,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
         content = ReusableActions.StripCodeBlock(content);
-        content = ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
+        content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
         var set = new ShowdownSet(content);
         var template = AutoLegalityWrapper.GetTemplate(set);
 
@@ -515,7 +515,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
 
         content = ReusableActions.StripCodeBlock(content);
-        content = ConvertMasterBall(content); // Temp fix for Ball: Master not being recognized by the bot
+        content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master not being recognized by the bot
         var set = new ShowdownSet(content);
         var template = AutoLegalityWrapper.GetTemplate(set);
 
@@ -1381,7 +1381,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         };
     }
 
-    private string ConvertMasterBall(string content)
+    private static string ConvertMasterBall(string content)
     {
         var lines = content.Split('\n');
         for (int i = 0; i < lines.Length; i++)
