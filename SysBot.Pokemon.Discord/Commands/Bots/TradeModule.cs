@@ -1432,14 +1432,14 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             // Allow the owner to prevent trading entities that require a HOME Tracker even if the file has one already.
             string speciesName = SpeciesName.GetSpeciesName(pk!.Species, (int)LanguageID.English);
-            await ReplyAsync($"{Context.User.Mention}, {typeof(T).Name} This Pokémon attachment is transfer-only and cannot be traded by this bot. You need to legally move this Pokémon through Pokémon Home<@754156803906076712>!").ConfigureAwait(false);
+            await ReplyAsync($"{Context.User.Mention}, This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.<@754156803906076712>!").ConfigureAwait(false);
             return;
         }
         if (Info.Hub.Config.Legality.DisallowTracked && pk is IHomeTrack { HasTracker: true })
         {
             // Allow the owner to prevent trading entities that already have a HOME Tracker.
             string speciesName = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
-            await ReplyAsync($"{Context.User.Mention}, {typeof(T).Name} This Pokémon attachment is transfer-only and cannot be traded by this bot. You need to legally move this Pokémon through Pokémon Home<@754156803906076712>!").ConfigureAwait(false);
+            await ReplyAsync($"{Context.User.Mention}, This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.<@754156803906076712>!").ConfigureAwait(false);
             return;
         }
         // handle past gen file requests
