@@ -400,12 +400,24 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 // Perform auto correct if it's on and send that shit through again
                 if (SysCord<T>.Runner.Config.Trade.AutoCorrectConfig.EnableAutoCorrect && !la.Valid)
                 {
-                    var correctedContent = await AutoCorrectShowdown<T>.PerformAutoCorrect(content, pkm, la);
+                    var (correctedContent, correctionMessages) = await AutoCorrectShowdown<T>.PerformAutoCorrect(content, pkm, la);
                     set = new ShowdownSet(correctedContent);
                     template = AutoLegalityWrapper.GetTemplate(set);
                     pkm = sav.GetLegal(template, out result);
                     la = new LegalityAnalysis(pkm);
                     setEdited = true;
+
+                    if (correctionMessages.Count > 0)
+                    {
+                        var userName = Context.User.Mention;
+                        var changesEmbed = new EmbedBuilder()
+                            .WithTitle("Showdown Set Corrections")
+                            .WithColor(Color.Orange)
+                            .WithDescription(string.Join("\n", correctionMessages))
+                            .Build();
+
+                        await ReplyAsync($"{userName}, here are the corrections made to your Showdown set:", embed: changesEmbed).ConfigureAwait(false);
+                    }
                 }
 
                 if (pkm is not T correctedPk || !la.Valid)
@@ -576,12 +588,24 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 // Perform auto correct if it's on and send that shit through again
                 if (SysCord<T>.Runner.Config.Trade.AutoCorrectConfig.EnableAutoCorrect && !la.Valid)
                 {
-                    var correctedContent = await AutoCorrectShowdown<T>.PerformAutoCorrect(content, pkm, la);
+                    var (correctedContent, correctionMessages) = await AutoCorrectShowdown<T>.PerformAutoCorrect(content, pkm, la);
                     set = new ShowdownSet(correctedContent);
                     template = AutoLegalityWrapper.GetTemplate(set);
                     pkm = sav.GetLegal(template, out result);
                     la = new LegalityAnalysis(pkm);
                     setEdited = true;
+
+                    if (correctionMessages.Count > 0)
+                    {
+                        var userName = Context.User.Mention;
+                        var changesEmbed = new EmbedBuilder()
+                            .WithTitle("Showdown Set Corrections")
+                            .WithColor(Color.Orange)
+                            .WithDescription(string.Join("\n", correctionMessages))
+                            .Build();
+
+                        await ReplyAsync($"{userName}, here are the corrections made to your Showdown set:", embed: changesEmbed).ConfigureAwait(false);
+                    }
                 }
 
                 if (pkm is not T correctedPk || !la.Valid)
@@ -856,12 +880,24 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 // Perform auto correct if it's on and send that shit through again
                 if (SysCord<T>.Runner.Config.Trade.AutoCorrectConfig.EnableAutoCorrect && !la.Valid)
                 {
-                    var correctedContent = await AutoCorrectShowdown<T>.PerformAutoCorrect(tradeContent, pkm, la);
+                    var (correctedContent, correctionMessages) = await AutoCorrectShowdown<T>.PerformAutoCorrect(tradeContent, pkm, la);
                     set = new ShowdownSet(correctedContent);
                     template = AutoLegalityWrapper.GetTemplate(set);
                     pkm = sav.GetLegal(template, out result);
                     la = new LegalityAnalysis(pkm);
                     setEdited = true;
+
+                    if (correctionMessages.Count > 0)
+                    {
+                        var userName = Context.User.Mention;
+                        var changesEmbed = new EmbedBuilder()
+                            .WithTitle("Showdown Set Corrections")
+                            .WithColor(Color.Orange)
+                            .WithDescription(string.Join("\n", correctionMessages))
+                            .Build();
+
+                        await ReplyAsync($"{userName}, here are the corrections made to your Showdown set:", embed: changesEmbed).ConfigureAwait(false);
+                    }
                 }
 
                 if (pkm is not T correctedPk || !la.Valid)
