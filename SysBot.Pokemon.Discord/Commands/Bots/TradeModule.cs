@@ -1510,14 +1510,14 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             // Allow the owner to prevent trading entities that require a HOME Tracker even if the file has one already.
             string speciesName = SpeciesName.GetSpeciesName(pk!.Species, (int)LanguageID.English);
-            await ReplyAsync($"This **{speciesName}** is not native to this game, and cannot be traded!  Trade with the correct bot, then trade to HOME.").ConfigureAwait(false);
+            await ReplyAsync($"This **{speciesName}** was not released in this game, and cannot be traded! Trade with the correct bot, then transfer to HOME then transfer to your game!").ConfigureAwait(false);
             return;
         }
         if (Info.Hub.Config.Legality.DisallowTracked && pk is IHomeTrack { HasTracker: true })
         {
             // Allow the owner to prevent trading entities that already have a HOME Tracker.
             string speciesName = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
-            await ReplyAsync($"This {speciesName} file is tracked by HOME, and cannot be traded!").ConfigureAwait(false);
+            await ReplyAsync($"{Context.User.Mention}, **{speciesName}** This bot does not accept files with home trackers **Remove the home tracker** in order to trade with the bot!").ConfigureAwait(false);
             return;
         }
         // handle past gen file requests
