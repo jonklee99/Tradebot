@@ -103,7 +103,6 @@ namespace SysBot.Pokemon.Discord
             pk.IVs = [31, 31, 31, 31, 31, 31];
             pk.SetShiny();
             pk.RefreshAbility(2);
-            pk.MaximizeFriendship();
             pk.RefreshChecksum();
         }
 
