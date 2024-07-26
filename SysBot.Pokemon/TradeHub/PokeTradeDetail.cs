@@ -61,8 +61,6 @@ namespace SysBot.Pokemon
 
         public bool IsMysteryEgg { get; }
 
-        public bool IgnoreAutoOT { get; }
-
         public bool SetEdited { get; set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -85,7 +83,6 @@ namespace SysBot.Pokemon
             TotalBatchTrades = totalBatchTrades;
             IsMysteryEgg = isMysteryEgg;
             UniqueTradeID = uniqueTradeID;
-            IgnoreAutoOT = ignoreAutoOT;
             SetEdited = setEdited;
         }
 
