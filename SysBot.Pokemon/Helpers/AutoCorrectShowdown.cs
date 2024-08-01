@@ -74,7 +74,7 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
                 }
             }
 
-            (string abilityName, string natureName, string ballName, string levelValue) = ParseLines(lines);
+            (string abilityName, string natureName, string ballName) = ParseLines(lines);
 
             string correctedAbilityName = string.Empty;
             if (!string.IsNullOrEmpty(abilityName) && autoCorrectConfig.AutoCorrectAbility)
@@ -111,16 +111,6 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
                 if (!string.IsNullOrEmpty(correctedBallName) && correctedBallName != ballName)
                 {
                     correctionMessages.Add($"{speciesName} can't be in a {ballName}. Adjusted to **{correctedBallName}**.");
-                }
-            }
-
-            if (autoCorrectConfig.AutoCorrectLevel && !string.IsNullOrWhiteSpace(levelValue))
-            {
-                var levelVerifier = new LevelVerifier();
-                levelVerifier.Verify(la);
-                if (!la.Valid)
-                {
-                    correctionMessages.Add($"Level was incorrect. Adjusted to **Level 100**.");
                 }
             }
 
@@ -178,7 +168,7 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
                 }
             }
 
-            string[] correctedLines = lines.Select((line, i) => CorrectLine(line, i, speciesName, correctedSpeciesName, correctedFormName ?? formName, formName, correctedGender, gender, correctedHeldItem, heldItem, correctedAbilityName, correctedNatureName, correctedBallName, levelValue, la, nickname)).ToArray();
+            string[] correctedLines = lines.Select((line, i) => CorrectLine(line, i, speciesName, correctedSpeciesName, correctedFormName ?? formName, formName, correctedGender, gender, correctedHeldItem, heldItem, correctedAbilityName, correctedNatureName, correctedBallName, la, nickname)).ToArray();
 
             // TODO:  Validate Scale Line and remove if necessary.
 
@@ -277,12 +267,11 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
         return (speciesName, formName, gender, heldItem, nickname);
     }
 
-    private static (string abilityName, string natureName, string ballName, string levelValue) ParseLines(string[] lines)
+    private static (string abilityName, string natureName, string ballName) ParseLines(string[] lines)
     {
         string abilityName = string.Empty;
         string natureName = string.Empty;
         string ballName = string.Empty;
-        string levelValue = string.Empty;
 
         foreach (string line in lines)
         {
@@ -294,14 +283,12 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
                 natureName = trimmedLine[..^" Nature".Length].Trim();
             else if (trimmedLine.StartsWith("Ball:"))
                 ballName = trimmedLine["Ball:".Length..].Trim();
-            else if (trimmedLine.StartsWith("Level:"))
-                levelValue = trimmedLine["Level:".Length..].Trim();
         }
 
-        return (abilityName, natureName, ballName, levelValue);
+        return (abilityName, natureName, ballName);
     }
 
-    private static string CorrectLine(string line, int index, string speciesName, string correctedSpeciesName, string correctedFormName, string formName, string correctedGender, string gender, string correctedHeldItem, string heldItem, string correctedAbilityName, string correctedNatureName, string correctedBallName, string levelValue, LegalityAnalysis la, string nickname)
+    private static string CorrectLine(string line, int index, string speciesName, string correctedSpeciesName, string correctedFormName, string formName, string correctedGender, string gender, string correctedHeldItem, string heldItem, string correctedAbilityName, string correctedNatureName, string correctedBallName, LegalityAnalysis la, string nickname)
     {
         if (index == 0) // Species line
         {
@@ -348,10 +335,6 @@ public static class AutoCorrectShowdown<T> where T : PKM, new()
         else if (line.StartsWith("Ball:"))
         {
             return $"Ball: {correctedBallName}";
-        }
-        else if (line.StartsWith("Level:"))
-        {
-            return !la.Valid ? "Level: 100" : $"Level: {levelValue}";
         }
         else if (line.StartsWith("Shiny:", StringComparison.OrdinalIgnoreCase))
         {

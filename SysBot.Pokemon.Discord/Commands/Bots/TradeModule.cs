@@ -1484,7 +1484,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             if (pk?.IsEgg == true)
             {
                 string speciesName = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
-                responseMessage = $"Invalid Showdown Set for the {speciesName} egg. Please review your information and try again.";
+                responseMessage = $"Invalid Showdown Set for the {speciesName} egg. Please review your information and try again.\n```\n{la.Report()}\n```";
             }
             else
             {
