@@ -405,7 +405,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
 
     [Command("dm")]
     [Summary("Sends a direct message to a specified user.")]
-    [RequireOwner]
+    [RequireSudo]
     public async Task DMUserAsync(SocketUser user, [Remainder] string message)
     {
         var attachments = Context.Message.Attachments;
@@ -413,11 +413,11 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
 
         var embed = new EmbedBuilder
         {
-            Title = "Private Message from the Bot Owner",
+            Title = "Private Message from Eternal Pokémon Paradise",
             Description = message,
-            Color = (DiscordColor?)Color.Gold,
+            Color = (DiscordColor?)Color.Blue,
             Timestamp = DateTimeOffset.Now,
-            ThumbnailUrl = "https://raw.githubusercontent.com/bdawg1989/sprites/main/pikamail.png"
+            ThumbnailUrl = "https://cdn.discordapp.com/attachments/1230419027567050795/1238366725997723699/g73pR.jpg?ex=66db4023&is=66d9eea3&hm=052696ac9a94b87a2a2a09719cd29b5a94425ee182b9bb11a62dc477933e7391&"
         };
 
         try
@@ -497,10 +497,9 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         else
         {
             await messageChannel.SendMessageAsync(actualMessage);
+            await Context.Message.DeleteAsync();
+            await Task.Delay(TimeSpan.FromSeconds(10));
         }
-
-        // Send confirmation message to the user
-        await ReplyAsync($"Message successfully posted in {channelMention}.");
     }
 
     private RemoteControlAccess GetReference(IUser channel) => new()
