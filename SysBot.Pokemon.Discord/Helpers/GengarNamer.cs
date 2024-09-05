@@ -75,8 +75,8 @@ public sealed class GengarNamer : IFileNamer<PKM>
         if (!pk.IsShiny)
             return string.Empty;
         if (pk.Format >= 8 && (pk.ShinyXor == 0 || pk.FatefulEncounter || pk.Version == GameVersion.GO))
-            return " ■";
-        return " ★";
+            return " <:Gold_Square:1279292495141933078>";
+        return " <:Gold_Star:1279292269501091861>";
     }
 
     private static string GetVersion(PKM pk)
