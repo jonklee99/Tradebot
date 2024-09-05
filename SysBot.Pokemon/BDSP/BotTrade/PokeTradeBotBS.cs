@@ -772,7 +772,7 @@ public class PokeTradeBotBS(PokeTradeHub<PB8> Hub, PokeBotState Config) : PokeRo
         if (offered.Species == 0 || !offered.ChecksumValid)
             return PokeTradeResult.TrainerTooSlow;
 
-        if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+        if (Hub.Config.Legality.UseTradePartnerInfo)
         {
             toSend = await ApplyAutoOT(toSend, offered, sav, tradePartner.TrainerName, token);
         }
