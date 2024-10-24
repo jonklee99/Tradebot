@@ -550,9 +550,6 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
-
-        updater.BackColor = UpdateGray;
-        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyGengarTheme()
@@ -617,8 +614,6 @@ public sealed partial class Main : Form
         B_Start.ForeColor = LightText;
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = LightText;
-        updater.BackColor = UpdateGray;
-        updater.ForeColor = LightText;
     }
 
     private void ApplyLightTheme()
@@ -691,9 +686,6 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
-
-        updater.BackColor = UpdateGray;
-        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyPokemonTheme()
@@ -768,9 +760,6 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
-
-        updater.BackColor = UpdateGray;
-        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyDarkTheme()
@@ -844,8 +833,5 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
-
-        updater.BackColor = UpdateGray;
-        updater.ForeColor = ElegantWhite;
     }
 }
