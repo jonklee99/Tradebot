@@ -344,14 +344,24 @@ public sealed partial class Main : Form
     private async void Updater_Click(object sender, EventArgs e)
     {
         var (updateAvailable, updateRequired, newVersion) = await UpdateChecker.CheckForUpdatesAsync();
-        if (updateAvailable)
+        if (!updateAvailable)
         {
-            UpdateForm updateForm = new UpdateForm(updateRequired, newVersion);
-            updateForm.ShowDialog();
+            var result = MessageBox.Show(
+                "You are on the latest version. Would you like to re-download the current version?",
+                "Update Check",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                UpdateForm updateForm = new UpdateForm(updateRequired, newVersion, updateAvailable: false);
+                updateForm.ShowDialog();
+            }
         }
         else
         {
-            MessageBox.Show("No updates are available.", "Update Check", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            UpdateForm updateForm = new UpdateForm(updateRequired, newVersion, updateAvailable: true);
+            updateForm.ShowDialog();
         }
     }
 
@@ -550,6 +560,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyGengarTheme()
@@ -614,6 +627,8 @@ public sealed partial class Main : Form
         B_Start.ForeColor = LightText;
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = LightText;
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = LightText;
     }
 
     private void ApplyLightTheme()
@@ -686,6 +701,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyPokemonTheme()
@@ -760,6 +778,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyDarkTheme()
@@ -833,5 +854,8 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 }
