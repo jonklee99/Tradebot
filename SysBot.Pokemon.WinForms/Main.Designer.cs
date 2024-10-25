@@ -254,7 +254,7 @@ namespace SysBot.Pokemon.WinForms
             B_Start.ForeColor = Color.ForestGreen;
             B_Start.Image = Resources.startall;
             B_Start.ImageAlign = ContentAlignment.MiddleLeft;
-            B_Start.Location = new Point(72, -2);
+            B_Start.Location = new Point(76, -2);
             B_Start.Margin = new Padding(0);
             B_Start.Name = "B_Start";
             B_Start.Size = new Size(115, 40);
