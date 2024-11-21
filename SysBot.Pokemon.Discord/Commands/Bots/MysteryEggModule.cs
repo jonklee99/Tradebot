@@ -191,8 +191,7 @@ namespace SysBot.Pokemon.Discord
            bool isHiddenTrade = false,
            bool isMysteryEgg = false,
            List<Pictocodes>? lgcode = null,
-           PokeTradeType tradeType = PokeTradeType.Specific,
-           bool ignoreAutoOT = false)
+           PokeTradeType tradeType = PokeTradeType.Specific)
         {
             lgcode ??= GenerateRandomPictocodes(3);
 
@@ -220,8 +219,7 @@ namespace SysBot.Pokemon.Discord
                 totalBatchTrades,
                 isHiddenTrade,
                 isMysteryEgg,
-                lgcode: lgcode,
-                ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
+                lgcode: lgcode).ConfigureAwait(false);
         }
 
         private static List<Pictocodes> GenerateRandomPictocodes(int count)

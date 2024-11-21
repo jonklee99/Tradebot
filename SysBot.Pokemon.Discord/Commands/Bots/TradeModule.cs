@@ -353,7 +353,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             _ = ReplyAndDeleteAsync("You already have an existing trade in the queue. Please wait until it is processed.", 2);
             return;
         }
-        var ignoreAutoOT = content.Contains("OT:") || content.Contains("TID:") || content.Contains("SID:");
         content = ReusableActions.StripCodeBlock(content);
         content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
 
@@ -504,7 +503,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 }
 
                 var sig = Context.User.GetFavor();
-                await AddTradeToQueueAsync(code, Context.User.Username, pk, sig, Context.User, isBatchTrade: false, batchTradeNumber: 1, totalBatchTrades: 1, true, false, lgcode: lgcode, ignoreAutoOT: ignoreAutoOT, setEdited: setEdited).ConfigureAwait(false);
+                await AddTradeToQueueAsync(code, Context.User.Username, pk, sig, Context.User, isBatchTrade: false, batchTradeNumber: 1, totalBatchTrades: 1, true, false, lgcode: lgcode, setEdited: setEdited).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -528,23 +527,22 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [Summary("Makes the bot trade you the provided Pokémon file without showing the trade embed details.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
     public Task HideTradeAsyncAttach(
-            [Summary("Trade Code")] int code,
-            [Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
+            [Summary("Trade Code")] int code)
     {
         var sig = Context.User.GetFavor();
-        return HideTradeAsyncAttach(code, sig, Context.User, ignoreAutoOT: ignoreAutoOT);
+        return HideTradeAsyncAttach(code, sig, Context.User);
     }
 
     [Command("hidetrade")]
     [Alias("ht")]
     [Summary("Makes the bot trade you the attached file without showing the trade embed details.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    private async Task HideTradeAsyncAttach([Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
+    private async Task HideTradeAsyncAttach()
     {
         var userID = Context.User.Id;
         var code = Info.GetRandomTradeCode(userID);
         var sig = Context.User.GetFavor();
-        await HideTradeAsyncAttach(code, sig, Context.User, ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
+        await HideTradeAsyncAttach(code, sig, Context.User).ConfigureAwait(false);
         if (Context.Message is IUserMessage userMessage)
         {
             _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
@@ -578,7 +576,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        var ignoreAutoOT = content.Contains("OT:") || content.Contains("TID:") || content.Contains("SID:");
         content = ReusableActions.StripCodeBlock(content);
         content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
 
@@ -727,7 +724,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 }
 
                 var sig = Context.User.GetFavor();
-                await AddTradeToQueueAsync(code, Context.User.Username, pk, sig, Context.User, isBatchTrade: false, batchTradeNumber: 1, totalBatchTrades: 1, lgcode: lgcode, ignoreAutoOT: ignoreAutoOT, setEdited: setEdited).ConfigureAwait(false);
+                await AddTradeToQueueAsync(code, Context.User.Username, pk, sig, Context.User, isBatchTrade: false, batchTradeNumber: 1, totalBatchTrades: 1, lgcode: lgcode, setEdited: setEdited).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -751,25 +748,24 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [Summary("Makes the bot trade you the provided Pokémon file.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
     public Task TradeAsyncAttach(
-    [Summary("Trade Code")] int code,
-    [Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
+    [Summary("Trade Code")] int code)
     {
         var sig = Context.User.GetFavor();
-        return TradeAsyncAttachInternal(code, sig, Context.User, ignoreAutoOT: ignoreAutoOT);
+        return TradeAsyncAttachInternal(code, sig, Context.User);
     }
 
     [Command("trade")]
     [Alias("t")]
     [Summary("Makes the bot trade you the attached file.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public async Task TradeAsyncAttach([Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
+    public async Task TradeAsyncAttach()
     {
         var userID = Context.User.Id;
         var code = Info.GetRandomTradeCode(userID);
         var sig = Context.User.GetFavor();
         await Task.Run(async () =>
         {
-            await TradeAsyncAttachInternal(code, sig, Context.User, ignoreAutoOT).ConfigureAwait(false);
+            await TradeAsyncAttachInternal(code, sig, Context.User).ConfigureAwait(false);
         }).ConfigureAwait(false);
         if (Context.Message is IUserMessage userMessage)
         {
@@ -972,7 +968,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     {
         tradeContent = ReusableActions.StripCodeBlock(tradeContent);
         var set = new ShowdownSet(tradeContent);
-        var ignoreAutoOT = tradeContent.Contains("OT:") || tradeContent.Contains("TID:") || tradeContent.Contains("SID:");
         var template = AutoLegalityWrapper.GetTemplate(set);
 
         if (set.InvalidLines.Count != 0)
@@ -1121,7 +1116,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 }
 
                 var sig = Context.User.GetFavor();
-                await AddTradeToQueueAsync(batchTradeCode, Context.User.Username, pk, sig, Context.User, isBatchTrade, batchTradeNumber, totalBatchTrades, lgcode: lgcode, tradeType: PokeTradeType.Batch, ignoreAutoOT: ignoreAutoOT, setEdited: setEdited).ConfigureAwait(false);
+                await AddTradeToQueueAsync(batchTradeCode, Context.User.Username, pk, sig, Context.User, isBatchTrade, batchTradeNumber, totalBatchTrades, lgcode: lgcode, tradeType: PokeTradeType.Batch, setEdited: setEdited).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1506,7 +1501,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         return TradeAsyncAttachUser(code, _);
     }
 
-    private async Task TradeAsyncAttachInternal(int code, RequestSignificance sig, SocketUser usr, bool ignoreAutoOT = false)
+    private async Task TradeAsyncAttachInternal(int code, RequestSignificance sig, SocketUser usr)
     {
         var attachment = Context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
@@ -1521,10 +1516,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await ReplyAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
             return;
         }
-        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
+        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr).ConfigureAwait(false);
     }
 
-    private async Task HideTradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr, bool ignoreAutoOT = false)
+    private async Task HideTradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr)
     {
         var attachment = Context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
@@ -1540,7 +1535,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await ReplyAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
             return;
         }
-        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, isHiddenTrade: true, ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
+        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, isHiddenTrade: true).ConfigureAwait(false);
     }
 
     private static T? GetRequest(Download<PKM> dl)
@@ -1555,7 +1550,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         };
     }
 
-    private async Task AddTradeToQueueAsync(int code, string trainerName, T? pk, RequestSignificance sig, SocketUser usr, bool isBatchTrade = false, int batchTradeNumber = 1, int totalBatchTrades = 1, bool isHiddenTrade = false, bool isMysteryMon = false, bool isMysteryEgg = false, List<Pictocodes>? lgcode = null, PokeTradeType tradeType = PokeTradeType.Specific, bool ignoreAutoOT = false, bool setEdited = false)
+    private async Task AddTradeToQueueAsync(int code, string trainerName, T? pk, RequestSignificance sig, SocketUser usr, bool isBatchTrade = false, int batchTradeNumber = 1, int totalBatchTrades = 1, bool isHiddenTrade = false, bool isMysteryMon = false, bool isMysteryEgg = false, List<Pictocodes>? lgcode = null, PokeTradeType tradeType = PokeTradeType.Specific, bool setEdited = false)
     {
         lgcode ??= TradeModule<T>.GenerateRandomPictocodes(3);
         if (pk is not null && !pk.CanBeTraded())
@@ -1616,7 +1611,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             la = new LegalityAnalysis(clone);
             if (la.Valid) pk = clone;
         }
-        await QueueHelper<T>.AddToQueueAsync(Context, code, trainerName, sig, pk!, PokeRoutineType.LinkTrade, tradeType, usr, isBatchTrade, batchTradeNumber, totalBatchTrades, isHiddenTrade, isMysteryMon, isMysteryEgg, lgcode, ignoreAutoOT: ignoreAutoOT, setEdited: setEdited, isNonNative: isNonNative).ConfigureAwait(false);
+        await QueueHelper<T>.AddToQueueAsync(Context, code, trainerName, sig, pk!, PokeRoutineType.LinkTrade, tradeType, usr, isBatchTrade, batchTradeNumber, totalBatchTrades, isHiddenTrade, isMysteryMon, isMysteryEgg, lgcode, setEdited: setEdited, isNonNative: isNonNative).ConfigureAwait(false);
     }
 
     public static List<Pictocodes> GenerateRandomPictocodes(int count)

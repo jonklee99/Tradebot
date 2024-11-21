@@ -400,7 +400,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
             if (completedTrades == 0 || startingDetail.TotalBatchTrades == 1)
                 poke.SendNotification(this, $"Found Link Trade partner: {trainerName}. **TID**: {trainerTID} **SID**: {trainerSID}. Waiting for a Pokémon...");
 
-            if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+            if (Hub.Config.Legality.UseTradePartnerInfo)
             {
                 toSend = await ApplyAutoOT(toSend, trainerName, sav, token);
             }
@@ -732,7 +732,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
             return PokeTradeResult.RecoverOpenBox;
         }
 
-        if (hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+        if (hub.Config.Legality.UseTradePartnerInfo)
         {
             toSend = await ApplyAutoOT(toSend, trainerName, sav, token);
         }

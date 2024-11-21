@@ -237,7 +237,7 @@ public class PokeTradeBotLGPE(PokeTradeHub<PB7> Hub, PokeBotState Config) : Poke
         poke.TradeInitialize(this);
         Hub.Config.Stream.EndEnterCode(this);
         var toSend = poke.TradeData;
-        if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+        if (Hub.Config.Legality.UseTradePartnerInfo)
         {
             var trainerID = poke.Trainer.ID;
             var tradeCodeStorage1 = new TradeCodeStorage();
