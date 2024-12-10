@@ -1041,7 +1041,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
 
                 if (poke.TradeData.Species != 0)
                 {
-                    if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+                    if (Hub.Config.Legality.UseTradePartnerInfo)
                     {
                         var nextToSend = await ApplyAutoOT(poke.TradeData, tradePartnerFullInfo, sav, token);
                         poke.TradeData = nextToSend;
