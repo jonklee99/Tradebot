@@ -449,7 +449,7 @@ public sealed class SysCord<T> where T : PKM, new()
                 var command = content.Split(' ')[0][1..];
                 if (_validCommands.Contains(command))
                 {
-                    await SafeSendMessageAsync(msg.Channel, $"{msg.Author.Mention} Incorrect prefix! The correct command is {correctPrefix}{command}**").ConfigureAwait(false);
+                    await SafeSendMessageAsync(msg.Channel, $"{msg.Author.Mention} Incorrect prefix! The correct command is **{correctPrefix}{command}**").ConfigureAwait(false);
                     return;
                 }
             }
