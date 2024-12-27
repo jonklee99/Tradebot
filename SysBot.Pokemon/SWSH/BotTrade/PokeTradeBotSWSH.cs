@@ -509,7 +509,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
                 await Click(A, 1_000, token).ConfigureAwait(false);
                 if (poke.TradeData.Species != 0)
                 {
-                    if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+                    if (Hub.Config.Legality.UseTradePartnerInfo)
                     {
                         var nextToSend = await ApplyAutoOT(poke.TradeData, trainerName, sav, token);
                         await SetBoxPokemon(nextToSend, 0, 0, token, sav).ConfigureAwait(false);
