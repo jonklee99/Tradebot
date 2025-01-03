@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using Discord.Net;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 using PKHeX.Core;
 using SysBot.Base;
 using SysBot.Pokemon.Helpers;
@@ -1691,6 +1692,90 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             LogUtil.LogSafe(ex, nameof(TradeModule<T>));
         }
+    }
+
+    [Command("tradeprofile")]
+    [Alias("tp")]
+    [Summary("Displays the user's trade profile based on their stored trade code information.")]
+    public async Task ProfileCommand()
+    {
+        var userMessage = Context.Message;
+
+        var userId = Context.User.Id.ToString();
+
+        // Path to the tradecodes.json file
+        const string TradeCodesFile = "tradecodes.json";
+
+        // Check if the file exists
+        if (!File.Exists(TradeCodesFile))
+        {
+            await Context.Channel.SendMessageAsync("The tradecodes file does not exist.").ConfigureAwait(false);
+            await DeleteCommandMessage(userMessage);
+            return;
+        }
+
+        // Read and parse the JSON file
+        string jsonData = await File.ReadAllTextAsync(TradeCodesFile).ConfigureAwait(false);
+        var tradeData = JsonConvert.DeserializeObject<Dictionary<string, TradeCodeInfo>>(jsonData);
+
+        if (tradeData == null || !tradeData.ContainsKey(userId))
+        {
+            await Context.Channel.SendMessageAsync("No trade profile found for you in the database.").ConfigureAwait(false);
+            await DeleteCommandMessage(userMessage);
+            return;
+        }
+
+        // Get user information
+        var userInfo = tradeData[userId];
+
+        // Format the trade code
+        string formattedTradeCode = $"{userInfo.Code / 10000:D4}-{userInfo.Code % 10000:D4}";
+
+        // Custom image URL for the thumbnail
+        const string CustomThumbnailUrl = "https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/Trainer_Info.png"; // Replace with your custom image URL
+
+        // Create the embed with a custom thumbnail
+        var embed = new EmbedBuilder()
+            .WithTitle($"{Context.User.Username}'s Trade Profile")
+            .WithColor(Color.Blue)
+            .WithThumbnailUrl(CustomThumbnailUrl) // Adds custom thumbnail
+            .AddField("Trade Code", formattedTradeCode, true) // Display formatted trade code
+            .AddField("OT", userInfo.OT, true)
+            .AddField("TID", userInfo.TID.ToString(), true)
+            .AddField("SID", userInfo.SID.ToString(), true)
+            .AddField("Trade Count", userInfo.TradeCount.ToString(), true)
+            .WithFooter("Use the bot responsibly!")
+            .Build();
+
+        // Send the embed
+        await Context.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+
+        // Delete the user's command message
+        await DeleteCommandMessage(userMessage);
+    }
+
+    // Helper method to delete a message
+    private async Task DeleteCommandMessage(IUserMessage message)
+    {
+        try
+        {
+            await message.DeleteAsync().ConfigureAwait(false);
+        }
+
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to delete message: {ex.Message}");
+        }
+    }
+
+    // Helper class to deserialize trade data
+    private class TradeCodeInfo
+    {
+        public int Code { get; set; }
+        public string OT { get; set; }
+        public int SID { get; set; }
+        public int TID { get; set; }
+        public int TradeCount { get; set; }
     }
 
     [Command("medals")]
