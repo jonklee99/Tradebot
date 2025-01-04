@@ -3,6 +3,7 @@ using Discord.Commands;
 using PKHeX.Core;
 using SysBot.Base;
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -200,10 +201,10 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("changeTradeCode")]
     [Alias("ctc")]
-    [Summary("Changes the user's trade code or another user's trade code if an ID is provided.")]
+    [Summary("Changes the user's trade code or another user's trade code if an ID or mention is provided.")]
     [RequireSudo]
     public async Task ChangeTradeCodeAsync(
-    [Summary("Discord ID of the user (optional)")] ulong? targetUserId = null,
+    [Summary("Discord ID or mention of the user (optional)")] string targetUserIdOrMention = null,
     [Summary("New 8-digit trade code")] string newCode = null)
     {
         // Delete user's message immediately to protect the trade code
@@ -215,7 +216,31 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        var userID = targetUserId ?? Context.User.Id; // Use provided ID or fallback to the command issuer's ID
+        ulong userID;
+        if (string.IsNullOrWhiteSpace(targetUserIdOrMention))
+        {
+            // Default to the command issuer's ID if no target is provided
+            userID = Context.User.Id;
+        }
+        else
+        {
+            // Check if the input is a mention or ID
+            var mentionedUser = Context.Message.MentionedUsers.FirstOrDefault();
+            if (mentionedUser != null)
+            {
+                userID = mentionedUser.Id;
+            }
+            else if (ulong.TryParse(targetUserIdOrMention, out ulong parsedId))
+            {
+                userID = parsedId;
+            }
+            else
+            {
+                await SendTemporaryMessageAsync("Invalid user ID or mention provided.").ConfigureAwait(false);
+                return;
+            }
+        }
+
         var tradeCodeStorage = new TradeCodeStorage();
 
         if (!ValidateTradeCode(newCode, out string errorMessage))
@@ -229,25 +254,24 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             int code = int.Parse(newCode);
             if (tradeCodeStorage.UpdateTradeCode(userID, code))
             {
-                if (targetUserId.HasValue)
+                // Notify the target user via DM if the user is not the command issuer
+                if (userID != Context.User.Id)
                 {
-                    // Notify the target user via DM
                     var targetUser = Context.Client.GetUser(userID);
                     if (targetUser != null)
                     {
                         try
                         {
                             var embed = new EmbedBuilder()
-                            .WithTitle("Your Trade Code Has Been Updated")
-                            .WithDescription($"Your new trade code is:\n# {newCode.Insert(4, " ")}") // Inserts a space for formatting (e.g., 1234 5678)
-                            .WithColor(new Color(0, 255, 255))
-                            .WithFooter($"Changed by: {Context.User.Username}", Context.User.GetAvatarUrl())
-                                .WithThumbnailUrl("https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Paradise/UpdateTradeCode.png")
+                                .WithTitle("Your Trade Code Has Been Updated")
+                                .WithDescription($"Your new trade code is:\n# {newCode.Insert(4, " ")}") // Inserts a space for formatting (e.g., 1234 5678)
+                                .WithColor(new Color(0, 255, 255))
+                                .WithFooter($"Changed by: {Context.User.Username}", Context.User.GetAvatarUrl())
+                                .WithThumbnailUrl("https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/UpdateTradeCode.png")
                                 .Build();
 
                             await targetUser.SendMessageAsync(embed: embed).ConfigureAwait(false);
-
-                            await SendTemporaryMessageAsync($"Successfully updated the trade code for user with ID: {userID} and sent them a notification.").ConfigureAwait(false);
+                            await SendTemporaryMessageAsync($"Successfully updated the trade code for {targetUser.Mention} and sent them a notification.").ConfigureAwait(false);
                         }
                         catch
                         {
@@ -275,6 +299,8 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await SendTemporaryMessageAsync("An error occurred while changing the trade code. Please try again later.").ConfigureAwait(false);
         }
     }
+
+
 
     private async Task SendTemporaryMessageAsync(string message)
     {

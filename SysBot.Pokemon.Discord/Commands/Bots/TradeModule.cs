@@ -1732,14 +1732,14 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         string formattedTradeCode = $"{userInfo.Code / 10000:D4}-{userInfo.Code % 10000:D4}";
 
         // Custom image URL for the thumbnail
-        const string CustomThumbnailUrl = "https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/Trainer_Info.png"; // Replace with your custom image URL
+        const string CustomThumbnailUrl = "https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/Trainer_Info.png";
 
         // Create the embed with a custom thumbnail
         var embed = new EmbedBuilder()
             .WithTitle($"{Context.User.Username}'s Trade Profile")
             .WithColor(Color.Blue)
-            .WithThumbnailUrl(CustomThumbnailUrl) // Adds custom thumbnail
-            .AddField("Trade Code", formattedTradeCode, true) // Display formatted trade code
+            .WithThumbnailUrl(CustomThumbnailUrl)
+            .AddField("Trade Code", formattedTradeCode, true)
             .AddField("OT", userInfo.OT, true)
             .AddField("TID", userInfo.TID.ToString(), true)
             .AddField("SID", userInfo.SID.ToString(), true)
@@ -1747,8 +1747,19 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             .WithFooter("Use the bot responsibly!")
             .Build();
 
-        // Send the embed
-        await Context.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+        // Try sending the embed to the user's DMs
+        try
+        {
+            var dmChannel = await Context.User.CreateDMChannelAsync();
+            await dmChannel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+            await Context.Channel.SendMessageAsync($"{Context.User.Mention}, I've sent your trade profile to your DMs.").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Catch any general exceptions (e.g., if the user has DMs disabled)
+            await Context.Channel.SendMessageAsync($"{Context.User.Mention}, I couldn't send you a DM. Please check your privacy settings.").ConfigureAwait(false);
+            Console.WriteLine($"Failed to send DM to user {Context.User.Id}: {ex.Message}");
+        }
 
         // Delete the user's command message
         await DeleteCommandMessage(userMessage);
@@ -1761,7 +1772,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             await message.DeleteAsync().ConfigureAwait(false);
         }
-
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to delete message: {ex.Message}");
