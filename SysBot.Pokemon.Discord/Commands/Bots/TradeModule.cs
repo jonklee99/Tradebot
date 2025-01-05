@@ -1734,16 +1734,22 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         // Custom image URL for the thumbnail
         const string CustomThumbnailUrl = "https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/Trainer_Info.png";
 
+        // Validate fields
+        string ot = string.IsNullOrWhiteSpace(userInfo.OT) ? "Unknown" : userInfo.OT;
+        string tid = userInfo.TID.ToString();
+        string sid = userInfo.SID.ToString();
+        string tradeCount = userInfo.TradeCount.ToString();
+
         // Create the embed with a custom thumbnail
         var embed = new EmbedBuilder()
             .WithTitle($"{Context.User.Username}'s Trade Profile")
             .WithColor(Color.Blue)
             .WithThumbnailUrl(CustomThumbnailUrl)
             .AddField("Trade Code", formattedTradeCode, true)
-            .AddField("OT", userInfo.OT, true)
-            .AddField("TID", userInfo.TID.ToString(), true)
-            .AddField("SID", userInfo.SID.ToString(), true)
-            .AddField("Trade Count", userInfo.TradeCount.ToString(), true)
+            .AddField("OT", ot, true)
+            .AddField("TID", tid, true)
+            .AddField("SID", sid, true)
+            .AddField("Trade Count", tradeCount, true)
             .WithFooter("Use the bot responsibly!")
             .Build();
 
