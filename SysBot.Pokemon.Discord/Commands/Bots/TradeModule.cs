@@ -1811,7 +1811,25 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         int currentMilestone = GetCurrentMilestone(totalTrades);
 
         var embed = CreateMedalsEmbed(Context.User, currentMilestone, totalTrades);
-        await Context.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+
+        try
+        {
+            // Send the embed to the user's DMs
+            var dmChannel = await Context.User.CreateDMChannelAsync();
+            await dmChannel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+
+            // Notify in the channel that the message has been sent
+            var confirmationMessage = await ReplyAsync($"{Context.User.Mention}, your medals information has been sent to your DMs.").ConfigureAwait(false);
+
+            // Delete the confirmation message after 5 seconds
+            await Task.Delay(5000);
+            await confirmationMessage.DeleteAsync().ConfigureAwait(false);
+        }
+        catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+        {
+            // This exception is thrown if the user has DMs disabled
+            await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM. Please check your privacy settings.").ConfigureAwait(false);
+        }
     }
 
     private static int GetCurrentMilestone(int totalTrades)
