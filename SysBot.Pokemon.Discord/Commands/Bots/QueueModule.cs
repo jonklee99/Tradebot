@@ -266,7 +266,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                                 .WithTitle("Your Trade Code Has Been Updated")
                                 .WithDescription($"Your new trade code is:\n# {newCode.Insert(4, " ")}") // Inserts a space for formatting (e.g., 1234 5678)
                                 .WithColor(new Color(0, 255, 255))
-                                .WithFooter($"Changed by: {Context.User.Username}", Context.User.GetAvatarUrl())
+                                .WithFooter($"Changed by: Eternal Pokemon Paradise!")
                                 .WithThumbnailUrl("https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/UpdateTradeCode.png")
                                 .Build();
 
