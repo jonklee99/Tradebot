@@ -403,10 +403,10 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         Environment.Exit(0);
     }
 
-    [Command("dm")]
-    [Summary("Sends a direct message to a specified user.")]
+    [Command("dme")]
+    [Summary("Sends a direct message to a specified user. With embed")]
     [RequireSudo]
-    public async Task DMUserAsync(SocketUser user, [Remainder] string message)
+    public async Task DMEUserAsync(SocketUser user, [Remainder] string message)
     {
         var attachments = Context.Message.Attachments;
         var hasAttachments = attachments.Count != 0;
@@ -437,6 +437,44 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
             else
             {
                 await dmChannel.SendMessageAsync(embed: embed.Build());
+            }
+
+            var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
+            await Context.Message.DeleteAsync();
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            await confirmationMessage.DeleteAsync();
+        }
+        catch (Exception ex)
+        {
+            await ReplyAsync($"Failed to send message to {user.Username}. Error: {ex.Message}");
+        }
+    }
+
+    [Command("dm")]
+    [Summary("Sends a direct message to a specified user. Without embed")]
+    [RequireSudo]
+    public async Task DMUserAsync(SocketUser user, [Remainder] string message)
+    {
+        var attachments = Context.Message.Attachments;
+        var hasAttachments = attachments.Count != 0;
+
+        try
+        {
+            var dmChannel = await user.CreateDMChannelAsync();
+
+            if (hasAttachments)
+            {
+                foreach (var attachment in attachments)
+                {
+                    using var httpClient = new HttpClient();
+                    var stream = await httpClient.GetStreamAsync(attachment.Url);
+                    var file = new FileAttachment(stream, attachment.Filename);
+                    await dmChannel.SendFileAsync(file, text: message);
+                }
+            }
+            else
+            {
+                await dmChannel.SendMessageAsync(message);
             }
 
             var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
