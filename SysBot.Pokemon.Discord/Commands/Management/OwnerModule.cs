@@ -409,7 +409,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     public async Task DMEUserAsync(SocketUser user, [Remainder] string message)
     {
         var attachments = Context.Message.Attachments;
-        var hasAttachments = attachments.Count != 0;
+        var hasAttachments = attachments.Count > 0;
 
         var embed = new EmbedBuilder
         {
@@ -440,13 +440,26 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
             }
 
             var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
-            await Context.Message.DeleteAsync();
+
+            // Delay to allow users to see the confirmation message
             await Task.Delay(TimeSpan.FromSeconds(10));
-            await confirmationMessage.DeleteAsync();
+            if (confirmationMessage != null)
+                await confirmationMessage.DeleteAsync();
         }
         catch (Exception ex)
         {
             await ReplyAsync($"Failed to send message to {user.Username}. Error: {ex.Message}");
+        }
+
+        // Deleting the original command message after the process
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            await Context.Message.DeleteAsync();
+        }
+        catch
+        {
+            // Do nothing if the message has already been deleted or fails to delete
         }
     }
 
@@ -456,7 +469,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     public async Task DMUserAsync(SocketUser user, [Remainder] string message)
     {
         var attachments = Context.Message.Attachments;
-        var hasAttachments = attachments.Count != 0;
+        var hasAttachments = attachments.Count > 0;
 
         try
         {
@@ -478,13 +491,26 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
             }
 
             var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
-            await Context.Message.DeleteAsync();
+
+            // Delay to allow users to see the confirmation message
             await Task.Delay(TimeSpan.FromSeconds(10));
-            await confirmationMessage.DeleteAsync();
+            if (confirmationMessage != null)
+                await confirmationMessage.DeleteAsync();
         }
         catch (Exception ex)
         {
             await ReplyAsync($"Failed to send message to {user.Username}. Error: {ex.Message}");
+        }
+
+        // Deleting the original command message after the process
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            await Context.Message.DeleteAsync();
+        }
+        catch
+        {
+            // Do nothing if the message has already been deleted or fails to delete
         }
     }
 
