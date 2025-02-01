@@ -936,7 +936,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                 poke.SendNotification(this, $"Found Link Trade partner: {tradePartner.TrainerName}. **TID**: {tradePartner.TID7} **SID**: {tradePartner.SID7}. Waiting for a Pokémon...");
 
             // Apply AutoOT after finding trade partner
-            if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+            if (Hub.Config.Legality.UseTradePartnerInfo)
             {
                 toSend = await ApplyAutoOT(toSend, tradePartnerFullInfo, sav, token).ConfigureAwait(false);
                 poke.TradeData = toSend; // Update the actual trade data
@@ -1039,7 +1039,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
 
                 if (poke.TradeData.Species != 0)
                 {
-                    if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+                    if (Hub.Config.Legality.UseTradePartnerInfo)
                     {
                         var nextToSend = await ApplyAutoOT(poke.TradeData, tradePartnerFullInfo, sav, token);
                         poke.TradeData = nextToSend;
@@ -1242,7 +1242,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             await ExitTradeToPortal(false, token).ConfigureAwait(false);
             return result;
         }
-        if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+        if (Hub.Config.Legality.UseTradePartnerInfo)
         {
             toSend = await ApplyAutoOT(toSend, tradePartnerFullInfo, sav, token);
         }
