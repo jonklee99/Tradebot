@@ -83,6 +83,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
 
         await server.LeaveAsync();
         await ReplyAsync($"Left the server '{server.Name}' and added it to the blacklist.");
+        await Context.Message.DeleteAsync();
     }
 
     [Command("unblacklistserver")]
@@ -108,6 +109,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         else
         {
             await ReplyAsync("An error occurred while trying to remove the server from the blacklist. Please check the server ID and try again.");
+            await Context.Message.DeleteAsync();
         }
     }
 
@@ -141,6 +143,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         var obj = GetReference(Context.Message.Channel);
         SysCordSettings.Settings.ChannelWhitelist.AddIfNew([obj]);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("syncChannels")]
@@ -181,6 +184,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         var obj = GetReference(Context.Message.Channel);
         SysCordSettings.Settings.ChannelWhitelist.RemoveAll(z => z.ID == obj.ID);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("leave")]
@@ -213,6 +217,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         }
 
         await ReplyAsync($"Leaving {guild}.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
         await guild.LeaveAsync().ConfigureAwait(false);
     }
 
@@ -222,6 +227,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     public async Task LeaveAll()
     {
         await ReplyAsync("Leaving all servers.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
         foreach (var guild in Context.Client.Guilds)
         {
             await guild.LeaveAsync().ConfigureAwait(false);
@@ -243,6 +249,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         {
             await ReplyAsync($"No bot found with the specified IP address ({ip}).").ConfigureAwait(false);
             return;
+            await Context.Message.DeleteAsync();
         }
 
         _ = Array.Empty<byte>();
@@ -293,6 +300,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
                 {
                     await ReplyAsync($"No bot found with the specified IP address ({ip}).").ConfigureAwait(false);
                     return;
+                    await Context.Message.DeleteAsync();
                 }
 
                 const int screenshotCount = 10;
@@ -401,6 +409,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     {
         await Context.Channel.EchoAndReply("Shutting down... goodbye! **Bot services are going offline.**").ConfigureAwait(false);
         Environment.Exit(0);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("dme")]

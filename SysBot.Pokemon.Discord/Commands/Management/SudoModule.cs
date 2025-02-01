@@ -24,6 +24,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var hub = me.Hub;
         hub.Config.TradeAbuse.BannedIDs.AddIfNew(objects);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("bannedIDComment")]
@@ -43,6 +44,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var oldComment = obj.Comment;
         obj.Comment = comment;
         await ReplyAsync($"Done. Changed existing comment ({oldComment}) to ({comment}).").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("blacklistId")]
@@ -54,6 +56,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var objects = IDs.Select(GetReference);
         SysCordSettings.Settings.UserBlacklist.AddIfNew(objects);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("blacklist")]
@@ -65,6 +68,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var objects = users.Select(GetReference);
         SysCordSettings.Settings.UserBlacklist.AddIfNew(objects);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("blacklistComment")]
@@ -82,6 +86,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var oldComment = obj.Comment;
         obj.Comment = comment;
         await ReplyAsync($"Done. Changed existing comment ({oldComment}) to ({comment}).").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("forgetUser")]
@@ -96,6 +101,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
             PokeRoutineExecutorBase.PreviousUsersDistribution.RemoveAllNID(ID);
         }
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("bannedIDSummary")]
@@ -109,6 +115,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var lines = hub.Config.TradeAbuse.BannedIDs.Summarize();
         var msg = string.Join("\n", lines);
         await ReplyAsync(Format.Code(msg)).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("blacklistSummary")]
@@ -120,6 +127,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var lines = SysCordSettings.Settings.UserBlacklist.Summarize();
         var msg = string.Join("\n", lines);
         await ReplyAsync(Format.Code(msg)).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("previousUserSummary")]
@@ -146,6 +154,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         }
         if (!found)
             await ReplyAsync("No previous users found.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("unbanID")]
@@ -158,6 +167,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var hub = me.Hub;
         hub.Config.TradeAbuse.BannedIDs.RemoveAll(z => IDs.Any(o => o == z.ID));
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("unBlacklistId")]
@@ -179,6 +189,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var objects = users.Select(GetReference);
         SysCordSettings.Settings.UserBlacklist.RemoveAll(z => objects.Any(o => o.ID == z.ID));
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("banTrade")]
@@ -215,6 +226,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
 
             hub.Config.TradeAbuse.BannedIDs.AddIfNew([bannedUser]);
             await dmChannel.SendMessageAsync($"Done. User {userName} with NID {userNID} has been banned from trading.");
+            await Context.Message.DeleteAsync();
         }
         catch (Exception ex)
         {

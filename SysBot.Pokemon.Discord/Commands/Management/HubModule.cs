@@ -80,6 +80,7 @@ public class HubModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new(
         }
 
         await ReplyAsync("Bot Status", false, builder.Build()).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     private static string GetNextName(PokeTradeQueue<T> q)
