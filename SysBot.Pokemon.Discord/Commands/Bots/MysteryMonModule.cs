@@ -189,7 +189,7 @@ namespace SysBot.Pokemon.Discord
             if (!pk.FatefulEncounter)
             {
                 //--------------- Shiny --------------//
-                bool isShiny = random.Next(0, 100) < 65; // 65% chance of being shiny
+                bool isShiny = random.Next(0, 100) < 100; // 100% chance of being shiny
                 if (isShiny)
                 {
                     pk.SetShiny(); // Make shiny
