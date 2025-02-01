@@ -122,6 +122,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         var objects = users.Select(GetReference);
         SysCordSettings.Settings.GlobalSudoList.AddIfNew(objects);
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("removeSudo")]
@@ -133,6 +134,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         var objects = users.Select(GetReference);
         SysCordSettings.Settings.GlobalSudoList.RemoveAll(z => objects.Any(o => o.ID == z.ID));
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("addChannel")]
@@ -154,6 +156,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     {
         var whitelist = SysCordSettings.Settings.ChannelWhitelist.List;
         var announcementList = SysCordSettings.Settings.AnnouncementChannels.List;
+        await Context.Message.DeleteAsync();
 
         bool changesMade = false;
 
@@ -195,6 +198,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     {
         await ReplyAsync("Goodbye.").ConfigureAwait(false);
         await Context.Guild.LeaveAsync().ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("leaveguild")]
@@ -249,7 +253,6 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         {
             await ReplyAsync($"No bot found with the specified IP address ({ip}).").ConfigureAwait(false);
             return;
-            await Context.Message.DeleteAsync();
         }
 
         _ = Array.Empty<byte>();
@@ -276,6 +279,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
             .WithFooter(new EmbedFooterBuilder { Text = "Here's your screenshot." });
 
         await Context.Channel.SendFileAsync(ms, img, embed: embed.Build());
+        await Context.Message.DeleteAsync();
     }
 
     [Command("video")]
@@ -285,6 +289,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     public async Task RePeekGIF()
     {
         await Context.Channel.SendMessageAsync("Processing GIF request...").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
 
         // Offload processing to a separate task so we dont hold up gateway tasks
         _ = Task.Run(async () =>
@@ -300,7 +305,6 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
                 {
                     await ReplyAsync($"No bot found with the specified IP address ({ip}).").ConfigureAwait(false);
                     return;
-                    await Context.Message.DeleteAsync();
                 }
 
                 const int screenshotCount = 10;
