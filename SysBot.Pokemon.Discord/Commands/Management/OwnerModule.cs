@@ -48,6 +48,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         await dmChannel.SendMessageAsync(embed: embedBuilder.Build());
 
         await ReplyAsync($"{Context.User.Mention}, I've sent you a DM with the list of guilds (Page {page}).");
+        await Context.Message.DeleteAsync();
 
         if (Context.Message is IUserMessage userMessage)
         {

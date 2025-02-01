@@ -178,6 +178,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         var IDs = GetIDs(content);
         SysCordSettings.Settings.UserBlacklist.RemoveAll(z => IDs.Any(o => o == z.ID));
         await ReplyAsync("Done.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("unblacklist")]
@@ -226,7 +227,6 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
 
             hub.Config.TradeAbuse.BannedIDs.AddIfNew([bannedUser]);
             await dmChannel.SendMessageAsync($"Done. User {userName} with NID {userNID} has been banned from trading.");
-            await Context.Message.DeleteAsync();
         }
         catch (Exception ex)
         {

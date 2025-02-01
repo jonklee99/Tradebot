@@ -82,10 +82,10 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             await ReplyAsync("No users mentioned").ConfigureAwait(false);
             return;
-            await Context.Message.DeleteAsync();
         }
         foreach (var u in users)
             await ClearTradeUserAsync(u.Id).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("deleteTradeCode")]
