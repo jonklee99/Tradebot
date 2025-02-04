@@ -23,7 +23,8 @@ public static class StringsUtil
 
     private static readonly char[] Blacklist = ['.', '\\', '/', ',', '*', ';', '．', '・', '。'];
     private static readonly string[] TLD = ["tv", "gg", "yt"];
-    private static readonly string[] TLD2 = ["com", "org", "net"];
+    private static readonly string[] TLD2 = ["com", "org", "net", "fun"];
+    private static readonly string[] NameBlacklist = ["trump", "biden"];
 
     /// <summary>
     /// Checks the input <see cref="text"/> to see if it is selfish spam.
@@ -39,7 +40,11 @@ public static class StringsUtil
             return false;
 
         text = text.Replace(" ", "");
+
         if (text.Contains("pkm", StringComparison.InvariantCultureIgnoreCase))
+            return true;
+
+        if (NameBlacklist.Any(name => text.Contains(name, StringComparison.InvariantCultureIgnoreCase)))
             return true;
 
         if (TLD.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
@@ -48,6 +53,7 @@ public static class StringsUtil
             return true;
         if (TLD.Any(z => text.StartsWith(z, StringComparison.InvariantCultureIgnoreCase)))
             return true;
+
         return false;
     }
 }
