@@ -170,7 +170,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             if (TradeExtensions<T>.HasAdName(pk, out string ad))
             {
-                await ReplyAndDeleteAsync("Detected Adname in the Pokémon's name or trainer name, which is not allowed.", 5);
+                await ReplyAndDeleteAsync("Detected Banned name in the Pokémon's name or trainer name.", 5);
                 return;
             }
         }

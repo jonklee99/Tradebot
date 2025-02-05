@@ -7,11 +7,11 @@ namespace SysBot.Pokemon;
 public static class StringsUtil
 {
     /// <summary>
-    /// Remove all non-alphanumeric characters, convert wide chars to narrow, and converts the final string to lowercase.
+    /// Remove all non-alphanumeric characters, convert wide chars to narrow, and convert the final string to lowercase.
     /// </summary>
-    /// <param name="input">User enter-able string</param>
+    /// <param name="input">User-entered string</param>
     /// <remarks>
-    /// Due to different languages having a different character input keyboard, we may encounter full-width characters.
+    /// Due to different languages having different character input keyboards, we may encounter full-width characters.
     /// Strip things down to a-z,0-9 so that we can permissibly compare these user input strings to our magic strings.
     /// </remarks>
     public static string Sanitize(string input)
@@ -24,7 +24,6 @@ public static class StringsUtil
     private static readonly char[] Blacklist = ['.', '\\', '/', ',', '*', ';', '．', '・', '。'];
     private static readonly string[] TLD = ["tv", "gg", "yt"];
     private static readonly string[] TLD2 = ["com", "org", "net", "fun"];
-    private static readonly string[] NameBlacklist = ["trump", "biden"];
 
     /// <summary>
     /// Checks the input <see cref="text"/> to see if it is selfish spam.
@@ -40,11 +39,7 @@ public static class StringsUtil
             return false;
 
         text = text.Replace(" ", "");
-
         if (text.Contains("pkm", StringComparison.InvariantCultureIgnoreCase))
-            return true;
-
-        if (NameBlacklist.Any(name => text.Contains(name, StringComparison.InvariantCultureIgnoreCase)))
             return true;
 
         if (TLD.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
@@ -53,7 +48,6 @@ public static class StringsUtil
             return true;
         if (TLD.Any(z => text.StartsWith(z, StringComparison.InvariantCultureIgnoreCase)))
             return true;
-
         return false;
     }
 }

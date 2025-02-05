@@ -282,8 +282,16 @@ namespace SysBot.Pokemon.Helpers
             // List of common TLDs to match
             const string domainPattern = @"(?<=\w)\.(com|org|net|gg|xyz|io|tv|co|me|us|uk|ca|de|fr|jp|au|eu|ch|it|nl|ru|br|in|fun)\b";
 
-            bool ot = Regex.IsMatch(pk.OriginalTrainerName, domainPattern, RegexOptions.IgnoreCase);
-            bool nick = Regex.IsMatch(pk.Nickname, domainPattern, RegexOptions.IgnoreCase);
+            // List of banned names
+            string[] NameBlacklist = { "trump", "biden" };
+
+            // Check if OT or Nickname contains a banned domain or name
+            bool ot = Regex.IsMatch(pk.OriginalTrainerName, domainPattern, RegexOptions.IgnoreCase) ||
+                      NameBlacklist.Any(name => pk.OriginalTrainerName.Contains(name, StringComparison.InvariantCultureIgnoreCase));
+
+            bool nick = Regex.IsMatch(pk.Nickname, domainPattern, RegexOptions.IgnoreCase) ||
+                        NameBlacklist.Any(name => pk.Nickname.Contains(name, StringComparison.InvariantCultureIgnoreCase));
+
             ad = ot ? pk.OriginalTrainerName : nick ? pk.Nickname : "";
             return ot || nick;
         }
