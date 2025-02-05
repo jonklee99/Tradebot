@@ -50,6 +50,12 @@ public static class StringsUtil
         if (NameBlacklist.Any(name => text.Contains(name, StringComparison.InvariantCultureIgnoreCase)))
             return true;
 
+        if (NameBlacklist.Any(z => text.StartsWith(z, StringComparison.InvariantCultureIgnoreCase)))
+            return true;
+
+        if (NameBlacklist.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
+            return true;
+
         if (TLD.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
             return true;
         if (TLD2.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
