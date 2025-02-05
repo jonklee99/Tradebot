@@ -24,22 +24,30 @@ public static class StringsUtil
     private static readonly char[] Blacklist = ['.', '\\', '/', ',', '*', ';', '．', '・', '。'];
     private static readonly string[] TLD = ["tv", "gg", "yt"];
     private static readonly string[] TLD2 = ["com", "org", "net", "fun"];
+    private static readonly string[] NameBlacklist = ["trump", "biden"];
 
     /// <summary>
-    /// Checks the input <see cref="text"/> to see if it is selfish spam.
+    /// Checks the input <see cref="text"/> (such as a Pokémon nickname or OT) to see if it is spammy.
     /// </summary>
     /// <param name="text">String to check</param>
     /// <returns>True if spam, false if natural.</returns>
     public static bool IsSpammyString(string text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        text = Sanitize(text); // Apply sanitization before checking
+
         if (text.IndexOfAny(Blacklist) >= 0)
             return true;
 
         if (text.Length <= 6)
             return false;
 
-        text = text.Replace(" ", "");
         if (text.Contains("pkm", StringComparison.InvariantCultureIgnoreCase))
+            return true;
+
+        if (NameBlacklist.Any(name => text.Contains(name, StringComparison.InvariantCultureIgnoreCase)))
             return true;
 
         if (TLD.Any(z => text.EndsWith(z, StringComparison.InvariantCultureIgnoreCase)))
@@ -48,6 +56,7 @@ public static class StringsUtil
             return true;
         if (TLD.Any(z => text.StartsWith(z, StringComparison.InvariantCultureIgnoreCase)))
             return true;
+
         return false;
     }
 }
