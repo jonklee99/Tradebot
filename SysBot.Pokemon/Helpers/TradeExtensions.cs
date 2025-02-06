@@ -285,12 +285,22 @@ namespace SysBot.Pokemon.Helpers
             // List of banned names
             string[] NameBlacklist = { "trump", "biden" };
 
-            // Check if OT or Nickname contains a banned domain or name
+            // Function to sanitize input: remove spaces and special characters, convert to lowercase
+            static string Sanitize(string input)
+            {
+                return new string(input.Where(char.IsLetterOrDigit).ToArray()).ToLower();
+            }
+
+            // Sanitize Nickname and OT before checking
+            string sanitizedOT = Sanitize(pk.OriginalTrainerName);
+            string sanitizedNick = Sanitize(pk.Nickname);
+
+            // Check for domains and banned names
             bool ot = Regex.IsMatch(pk.OriginalTrainerName, domainPattern, RegexOptions.IgnoreCase) ||
-                      NameBlacklist.Any(name => pk.OriginalTrainerName.Contains(name, StringComparison.InvariantCultureIgnoreCase));
+                      NameBlacklist.Any(name => sanitizedOT.Contains(name));
 
             bool nick = Regex.IsMatch(pk.Nickname, domainPattern, RegexOptions.IgnoreCase) ||
-                        NameBlacklist.Any(name => pk.Nickname.Contains(name, StringComparison.InvariantCultureIgnoreCase));
+                        NameBlacklist.Any(name => sanitizedNick.Contains(name));
 
             ad = ot ? pk.OriginalTrainerName : nick ? pk.Nickname : "";
             return ot || nick;
