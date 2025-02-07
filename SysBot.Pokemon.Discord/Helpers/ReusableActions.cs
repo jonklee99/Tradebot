@@ -54,7 +54,13 @@ public static class ReusableActions
             else newShowdown[index] = "Shiny: Star\r";
         }
 
-        newShowdown.InsertRange(1, [$"OT: {pkm.OriginalTrainerName}", $"TID: {pkm.DisplayTID}", $"SID: {pkm.DisplaySID}", $"OTGender: {(Gender)pkm.OriginalTrainerGender}", $"Language: {(LanguageID)pkm.Language}"]);
+        // Insert HOME Tracker info if applicable
+        string homeTrackerInfo = "";
+        if (pkm is IHomeTrack homeTrack && homeTrack.HasTracker)
+            homeTrackerInfo = $"Home Tracker: {homeTrack.Tracker}\n";
+
+        newShowdown.InsertRange(1, [$"OT: {pkm.OriginalTrainerName}", $"TID: {pkm.DisplayTID}", $"SID: {pkm.DisplaySID}", $"OTGender: {(Gender)pkm.OriginalTrainerGender}", $"Language: {(LanguageID)pkm.Language}", homeTrackerInfo]);
+
         return Format.Code(string.Join("\n", newShowdown).TrimEnd());
     }
 

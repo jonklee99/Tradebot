@@ -32,6 +32,13 @@ public static class DetailsExtractor<T> where T : PKM, new()
             (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowIVs ? $"**IVs**: {embedData.IVsDisplay}\n" : "") +
             (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowEVs && !string.IsNullOrWhiteSpace(embedData.EVsDisplay) ? $"**EVs**: {embedData.EVsDisplay}\n" : "");
 
+        if (pk is IHomeTrack homeTrack)
+        {
+            leftSideContent += (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowTracker
+                ? $"**Home Tracker:** {(homeTrack.HasTracker ? homeTrack.Tracker.ToString() : "None")}\n"
+                : "");
+        }
+
         leftSideContent = leftSideContent.TrimEnd('\n');
         embedBuilder.AddField($"**{embedData.SpeciesName}{(string.IsNullOrEmpty(embedData.FormName) ? "" : $"-{embedData.FormName}")} {embedData.SpecialSymbols}**", leftSideContent, inline: true);
         embedBuilder.AddField("\u200B", "\u200B", inline: true); // Spacer
@@ -294,6 +301,8 @@ public class EmbedData
     public string? IVsDisplay { get; set; }
 
     public int Level { get; set; }
+
+    public int Tracker { get; set; }
 
     public string? MetDate { get; set; }
 
