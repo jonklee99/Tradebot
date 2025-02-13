@@ -457,7 +457,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                     {
                         var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
                                      result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
-                                     $"I wasn't able to create a {spec} from that set.";
+                                     $"I wasn't able to create a {spec} from that set.\n**Something in your set is invalid. Verify that all information is valid and formatted correctly**";
 
                         var embedBuilder = new EmbedBuilder()
                             .WithTitle("Trade Creation Failed.")
@@ -678,7 +678,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                     {
                         var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
                                      result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
-                                     $"I wasn't able to create a {spec} from that set.";
+                                     $"I wasn't able to create a {spec} from that set.\n**Something in your set is invalid. Verify that all information is valid and formatted correctly**";
 
                         var embedBuilder = new EmbedBuilder()
                             .WithTitle("Trade Creation Failed.")
@@ -1016,7 +1016,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                     {
                         var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
                                      result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
-                                     $"I wasn't able to create a {spec} from that set.";
+                                     $"I wasn't able to create a {spec} from that set.\n**Something in your set is invalid. Verify that all information is valid and formatted correctly**";
 
                         var embedBuilder = new EmbedBuilder()
                             .WithTitle("Trade Creation Failed.")
