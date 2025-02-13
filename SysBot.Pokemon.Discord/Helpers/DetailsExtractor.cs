@@ -30,7 +30,10 @@ public static class DetailsExtractor<T> where T : PKM, new()
             (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowAbility ? $"**Ability:** {embedData.Ability}\n" : "") +
             (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowNature ? $"**Nature**: {embedData.Nature}\n" : "") +
             (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowIVs ? $"**IVs**: {embedData.IVsDisplay}\n" : "") +
-            (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowEVs && !string.IsNullOrWhiteSpace(embedData.EVsDisplay) ? $"**EVs**: {embedData.EVsDisplay}\n" : "");
+            (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowEVs && !string.IsNullOrWhiteSpace(embedData.EVsDisplay) ? $"**EVs**: {embedData.EVsDisplay}\n" : "") +
+            (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowGVs && !string.IsNullOrWhiteSpace(embedData.GVsDisplay) ? $"**GVs**: {embedData.GVsDisplay}\n" : "") +
+            (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.ShowAVs && !string.IsNullOrWhiteSpace(embedData.AVsDisplay) ? $"**AVs**: {embedData.AVsDisplay}\n" : "");
+
 
         if (pk is IHomeTrack homeTrack)
         {
@@ -119,6 +122,27 @@ public static class DetailsExtractor<T> where T : PKM, new()
             (evs[5] != 0 ? $"{evs[5]} SpD" : ""),
             (evs[3] != 0 ? $"{evs[3]} Spe" : "") // correct pkhex/ALM ordering of stats
         }.Where(s => !string.IsNullOrEmpty(s)));
+
+        int[] gvs = GetGVs(pk);
+        embedData.GVsDisplay = string.Join(" / ", new[] {
+            (gvs[0] != 0 ? $"{gvs[0]} HP" : ""),
+            (gvs[1] != 0 ? $"{gvs[1]} Atk" : ""),
+            (gvs[2] != 0 ? $"{gvs[2]} Def" : ""),
+            (gvs[4] != 0 ? $"{gvs[4]} SpA" : ""),
+            (gvs[5] != 0 ? $"{gvs[5]} SpD" : ""),
+            (gvs[3] != 0 ? $"{gvs[3]} Spe" : "") // correct pkhex/ALM ordering of stats
+        }.Where(s => !string.IsNullOrEmpty(s)));
+
+        int[] avs = GetAVs(pk);
+        embedData.AVsDisplay = string.Join(" / ", new[] {
+            (avs[0] != 0 ? $"{avs[0]} HP" : ""),
+            (avs[1] != 0 ? $"{avs[1]} Atk" : ""),
+            (avs[2] != 0 ? $"{avs[2]} Def" : ""),
+            (avs[4] != 0 ? $"{avs[4]} SpA" : ""),
+            (avs[5] != 0 ? $"{avs[5]} SpD" : ""),
+            (avs[3] != 0 ? $"{avs[3]} Spe" : "") // correct pkhex/ALM ordering of stats
+        }.Where(s => !string.IsNullOrEmpty(s)));
+
         embedData.MetDate = pk.MetDate.ToString();
         embedData.MovesDisplay = string.Join("\n", embedData.Moves);
         embedData.PokemonDisplayName = pk.IsNicknamed ? pk.Nickname : embedData.SpeciesName;
@@ -175,6 +199,27 @@ public static class DetailsExtractor<T> where T : PKM, new()
         int[] evs = new int[6];
         pk.GetEVs(evs);
         return evs;
+    }
+
+    private static int[] GetGVs(T pk)
+    {
+        if (pk is IGanbaru ganbaru)
+        {
+            Span<byte> gvs = stackalloc byte[6];
+            ganbaru.GetGVs(gvs);
+            return gvs.ToArray().Select(x => (int)x).ToArray();
+        }
+        return new int[6];
+    }
+    private static int[] GetAVs(T pk)
+    {
+        if (pk is IAwakened awakened)
+        {
+            Span<byte> avs = stackalloc byte[6];
+            AwakeningUtil.GetAVs(awakened, avs);
+            return avs.ToArray().Select(x => (int)x).ToArray();
+        }
+        return new int[6]; // Default if not applicable
     }
 
     private static List<string> GetMoveNames(T pk)
@@ -299,6 +344,10 @@ public class EmbedData
     public bool IsLocalFile { get; set; }
 
     public string? IVsDisplay { get; set; }
+
+    public string? GVsDisplay { get; set; }
+
+    public string? AVsDisplay { get; set; }
 
     public int Level { get; set; }
 
