@@ -57,7 +57,7 @@ public static class ReusableActions
         // Insert HOME Tracker info if applicable
         string homeTrackerInfo = "";
         if (pkm is IHomeTrack homeTrack && homeTrack.HasTracker)
-            homeTrackerInfo = $"Home Tracker: {homeTrack.Tracker}\n";
+            homeTrackerInfo = $"Home Tracker: {homeTrack.Tracker}";
 
         newShowdown.InsertRange(1, [$"OT: {pkm.OriginalTrainerName}", $"TID: {pkm.DisplayTID}", $"SID: {pkm.DisplaySID}", $"OTGender: {(Gender)pkm.OriginalTrainerGender}", $"Language: {(LanguageID)pkm.Language}", homeTrackerInfo]);
 
