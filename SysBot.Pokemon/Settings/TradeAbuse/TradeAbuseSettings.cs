@@ -1,10 +1,18 @@
+using System.Collections.Generic;
+using System;
 using System.ComponentModel;
+using System.Text.Json;
+using System.IO;
 
 namespace SysBot.Pokemon;
 
 public class TradeAbuseSettings
 {
     private const string Monitoring = nameof(Monitoring);
+    private static readonly string SaveFilePath = "TradeAbuseData.json"; // File path to save data
+
+    public Dictionary<string, DateTime> CooldownTracker { get; set; } = new(); // Store user cooldown information
+
     public override string ToString() => "Trade Abuse Monitoring Settings";
 
     [Category(Monitoring), Description("When a person appears again in less than this setting's value (minutes), a notification will be sent.")]
@@ -51,4 +59,63 @@ public class TradeAbuseSettings
 
     [Category(Monitoring), Description("If not empty, the provided string will be appended to Echo alerts to notify whomever you specify when a user violates Ledy trade rules. For Discord, use <@userIDnumber> to mention.")]
     public string LedyAbuseEchoMention { get; set; } = string.Empty;
+
+    public void SaveToFile()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(SaveFilePath, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save trade abuse data: {ex.Message}");
+        }
+    }
+
+    public static TradeAbuseSettings LoadFromFile()
+    {
+        try
+        {
+            if (!File.Exists(SaveFilePath))
+            {
+                var newSettings = new TradeAbuseSettings();
+                newSettings.SaveToFile();
+                return newSettings;
+            }
+
+            var json = File.ReadAllText(SaveFilePath);
+            return JsonSerializer.Deserialize<TradeAbuseSettings>(json) ?? new TradeAbuseSettings();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load trade abuse data: {ex.Message}");
+        }
+        return new TradeAbuseSettings();
+    }
+
+    public void AddCooldown(string userId)
+    {
+        CooldownTracker[userId] = DateTime.UtcNow;
+        SaveToFile();
+    }
+
+    public bool IsOnCooldown(string userId, double cooldownMinutes)
+    {
+        if (CooldownTracker.TryGetValue(userId, out var lastTrade))
+        {
+            return (DateTime.UtcNow - lastTrade).TotalMinutes < cooldownMinutes;
+        }
+        return false;
+    }
+
+    public void ClearCooldown(string userId)
+    {
+        if (CooldownTracker.ContainsKey(userId))
+        {
+            CooldownTracker.Remove(userId);
+            SaveToFile();
+        }
+    }
 }
+
