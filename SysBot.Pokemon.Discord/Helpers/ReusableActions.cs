@@ -55,11 +55,17 @@ public static class ReusableActions
         }
 
         // Insert HOME Tracker info if applicable
-        string homeTrackerInfo = "";
-        if (pkm is IHomeTrack homeTrack && homeTrack.HasTracker)
-            homeTrackerInfo = $"Home Tracker: {homeTrack.Tracker}";
+        var homeTrackerLines = new List<string>();
+        homeTrackerLines.Add($"OT: {pkm.OriginalTrainerName}");
+        homeTrackerLines.Add($"TID: {pkm.DisplayTID}");
+        homeTrackerLines.Add($"SID: {pkm.DisplaySID}");
+        homeTrackerLines.Add($"OTGender: {(Gender)pkm.OriginalTrainerGender}");
+        homeTrackerLines.Add($"Language: {(LanguageID)pkm.Language}");
 
-        newShowdown.InsertRange(1, [$"OT: {pkm.OriginalTrainerName}", $"TID: {pkm.DisplayTID}", $"SID: {pkm.DisplaySID}", $"OTGender: {(Gender)pkm.OriginalTrainerGender}", $"Language: {(LanguageID)pkm.Language}", homeTrackerInfo]);
+        if (pkm is IHomeTrack homeTrack && homeTrack.HasTracker)
+            homeTrackerLines.Add($"Home Tracker: {homeTrack.Tracker}");
+
+        newShowdown.InsertRange(1, homeTrackerLines);
 
         return Format.Code(string.Join("\n", newShowdown).TrimEnd());
     }
