@@ -287,7 +287,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
         content = ReusableActions.StripCodeBlock(content);
-        content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
         var set = new ShowdownSet(content);
         var template = AutoLegalityWrapper.GetTemplate(set);
         _ = Task.Run(async () =>
@@ -355,7 +354,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
         content = ReusableActions.StripCodeBlock(content);
-        content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
 
         // Check if the showdown set contains "Egg"
         bool isEgg = TradeExtensions<T>.IsEggCheck(content);
@@ -578,7 +576,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
 
         content = ReusableActions.StripCodeBlock(content);
-        content = TradeModule<T>.ConvertMasterBall(content); // Temp fix for Ball: Master being unrecognized by the bot
 
         // Check if the showdown set contains "Egg"
         bool isEgg = TradeExtensions<T>.IsEggCheck(content);
@@ -1643,19 +1640,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             LogUtil.LogSafe(ex, nameof(TradeModule<T>));
         }
-    }
-
-    private static string ConvertMasterBall(string content)
-    {
-        var lines = content.Split('\n');
-        for (int i = 0; i < lines.Length; i++)
-        {
-            if (lines[i].StartsWith("Ball:") && lines[i].Contains("Master"))
-            {
-                lines[i] = ".Ball=1";
-            }
-        }
-        return string.Join('\n', lines);
     }
 
     private async Task DeleteMessagesAfterDelayAsync(IMessage? sentMessage, IMessage? messageToDelete, int delaySeconds)

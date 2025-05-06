@@ -52,7 +52,7 @@ namespace SysBot.Pokemon.WinForms
             using var client = new HttpClient();
             try
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "MergeBot");
+                client.DefaultRequestHeaders.Add("User-Agent", "SysBot");
 
                 string releasesUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest";
                 HttpResponseMessage response = await client.GetAsync(releasesUrl);

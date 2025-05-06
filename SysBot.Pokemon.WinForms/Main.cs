@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.ComponentModel;
 
 namespace SysBot.Pokemon.WinForms;
 
@@ -23,6 +24,7 @@ public sealed partial class Main : Form
 
     private ProgramConfig Config { get; set; }
 
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public static bool IsUpdating { get; set; } = false;
 
     private bool _isFormLoading = true;
@@ -560,6 +562,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyGengarTheme()
@@ -624,6 +629,8 @@ public sealed partial class Main : Form
         B_Start.ForeColor = LightText;
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = LightText;
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = LightText;
     }
 
     private void ApplyLightTheme()
@@ -696,6 +703,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyPokemonTheme()
@@ -770,6 +780,9 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 
     private void ApplyDarkTheme()
@@ -843,5 +856,8 @@ public sealed partial class Main : Form
 
         B_RebootStop.BackColor = RebootBlue;
         B_RebootStop.ForeColor = ElegantWhite;
+
+        updater.BackColor = UpdateGray;
+        updater.ForeColor = ElegantWhite;
     }
 }
