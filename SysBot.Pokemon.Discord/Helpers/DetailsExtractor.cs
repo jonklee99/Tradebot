@@ -87,7 +87,7 @@ public static class DetailsExtractor<T> where T : PKM, new()
         // Pokémon identity and special attributes
         embedData.Ability = GetAbilityName(pk);
         embedData.Nature = GetNatureName(pk);
-        embedData.SpeciesName = GameInfo.GetStrings(1).Species[pk.Species];
+        embedData.SpeciesName = GameInfo.GetStrings("en").Species[pk.Species];
         embedData.SpecialSymbols = GetSpecialSymbols(pk);
         embedData.FormName = ShowdownParsing.GetStringFromForm(pk.Form, strings, pk.Species, pk.Context);
         embedData.HeldItem = strings.itemlist[pk.HeldItem];

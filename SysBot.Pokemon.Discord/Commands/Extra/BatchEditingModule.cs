@@ -15,11 +15,11 @@ public class BatchEditingModule : ModuleBase<SocketCommandContext>
     [Summary("Tries to get info about the requested property.")]
     public async Task GetBatchInfo(string propertyName)
     {
-        var result = BatchEditing.GetPropertyType(propertyName);
-        if (string.IsNullOrWhiteSpace(result))
-            await ReplyAsync($"Unable to find info for {propertyName}.").ConfigureAwait(false);
-        else
-            await ReplyAsync($"{propertyName}: {result}").ConfigureAwait(false);
+        if (BatchEditing.TryGetPropertyType(propertyName, out string? result))
+            if (string.IsNullOrWhiteSpace(result))
+                await ReplyAsync($"Unable to find info for {propertyName}.").ConfigureAwait(false);
+            else
+                await ReplyAsync($"{propertyName}: {result}").ConfigureAwait(false);
     }
 
     [Command("batchValidate"), Alias("bev")]
@@ -46,8 +46,7 @@ public class BatchEditingModule : ModuleBase<SocketCommandContext>
         var set = new StringInstructionSet(split);
         foreach (var s in set.Filters.Concat(set.Instructions))
         {
-            var type = BatchEditing.GetPropertyType(s.PropertyName);
-            if (type == null)
+            if (!BatchEditing.TryGetPropertyType(s.PropertyName, out string? _))
                 invalid.Add(s);
         }
 
