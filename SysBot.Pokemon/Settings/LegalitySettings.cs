@@ -1,6 +1,8 @@
 using PKHeX.Core;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 
 namespace SysBot.Pokemon;
 
@@ -71,12 +73,11 @@ public class LegalitySettings
         EncounterTypeGroup.Trade,
     ];
 
-    [Category(Generate), Description("If PrioritizeGame is set to \"True\", uses PrioritizeGameVersion to start looking for encounters. If \"False\", uses newest game as the version. It is recommended to leave this as \"True\".")]
-    public bool PrioritizeGame { get; set; } = true;
+    [Category(Generate), Description("If PrioritizeGame is set to \"True\", uses PriorityOrder to start looking for encounters. If \"False\", uses newest game as the version. It is recommended to leave this as \"True\".")]
+    public bool PrioritizeGame { get; set; } = false;
 
-    [Browsable(false)]
-    [Category(Generate), Description("Specifies the first game to use to generate encounters, or current game if this field is set to \"Any\". Set PrioritizeGame to \"true\" to enable. It is recommended to leave this as \"Any\".")]
-    public GameVersion PrioritizeGameVersion { get; set; } = GameVersion.Any;
+    [Category(Generate), Description("The order of GameVersions ALM will attempt to legalize from.")]
+    public List<GameVersion> PriorityOrder { get; set; } = [.. Enum.GetValues<GameVersion>().Where(ver => ver > GameVersion.Any && ver <= (GameVersion)51)];
 
     // Misc
     [Browsable(false)]
@@ -84,11 +85,11 @@ public class LegalitySettings
     public bool ResetHOMETracker { get; set; } = false;
 
     [Category(Generate), Description("Set all possible legal ribbons for any generated Pokémon.")]
-    public bool SetAllLegalRibbons { get; set; }
+    public bool SetAllLegalRibbons { get; set; } = false;
 
     [Browsable(false)]
     [Category(Generate), Description("Adds Battle Version for games that support it (SWSH only) for using past-gen Pokémon in online competitive play.")]
-    public bool SetBattleVersion { get; set; }
+    public bool SetBattleVersion { get; set; } = false;
 
     [Category(Generate), Description("Set a matching ball (based on color) for any generated Pokémon.")]
     public bool SetMatchingBalls { get; set; } = true;
