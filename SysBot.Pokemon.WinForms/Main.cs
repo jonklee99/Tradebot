@@ -5,903 +5,845 @@ using SysBot.Pokemon.WinForms.Properties;
 using SysBot.Pokemon.Z3;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.ComponentModel;
 
-namespace SysBot.Pokemon.WinForms
+namespace SysBot.Pokemon.WinForms;
+
+public sealed partial class Main : Form
 {
-    public sealed partial class Main : Form
+    private readonly List<PokeBotState> Bots = [];
+
+    private IPokeBotRunner RunningEnvironment { get; set; }
+
+    private ProgramConfig Config { get; set; }
+
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public static bool IsUpdating { get; set; } = false;
+
+    private bool _isFormLoading = true;
+
+#pragma warning disable CS8618
+
+    public Main()
+#pragma warning restore CS8618
     {
-        private readonly List<PokeBotState> Bots = new();
+        InitializeComponent();
+        comboBox1.SelectedIndexChanged += new EventHandler(ComboBox1_SelectedIndexChanged);
+        Load += async (sender, e) => await InitializeAsync();
+    }
 
-        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        internal ProgramConfig Config { get; set; } = null!;
+    private async Task InitializeAsync()
+    {
+        if (IsUpdating)
+            return;
+        PokeTradeBotSWSH.SeedChecker = new Z3SeedSearchHandler<PK8>();
 
-        private IPokeBotRunner RunningEnvironment { get; set; } = null!;
+        // Update checker
+        UpdateChecker updateChecker = new UpdateChecker();
+        await UpdateChecker.CheckForUpdatesAsync();
 
-        public readonly ISwitchConnectionAsync? SwitchConnection;
-        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public static bool IsUpdating { get; set; } = false;
-        private System.Windows.Forms.Timer? _autoSaveTimer;
-        private bool _isFormLoading = true;
-
-        private SearchManager _searchManager = null!;
-
-        internal bool hasUpdate = false;
-        internal double pulsePhase = 0;
-        private Color lastIndicatorColor = Color.Empty;
-        private DateTime lastIndicatorUpdate = DateTime.MinValue;
-        private const int PULSE_UPDATE_INTERVAL_MS = 50;
-        private bool _isReallyClosing = false;
-        private LinearGradientBrush? _logoBrush;
-        private Image? _currentModeImage = null;
-
-        public Main()
+        if (File.Exists(Program.ConfigPath))
         {
-            InitializeComponent();
-            Load += async (sender, e) => await InitializeAsync();
-
-            TC_Main = new TabControl { Visible = false };
-            Tab_Bots = new TabPage();
-            Tab_Hub = new TabPage();
-            Tab_Logs = new TabPage();
-            TC_Main.TabPages.AddRange(new[] { Tab_Bots, Tab_Hub, Tab_Logs });
-            TC_Main.SendToBack();
-
-            _searchManager = new SearchManager(RTB_Logs, searchStatusLabel);
-            ConfigureSearchEventHandlers();
-        }
-
-        private void ConfigureSearchEventHandlers()
-        {
-            btnCaseSensitive.CheckedChanged += (s, e) => _searchManager.ToggleCaseSensitive();
-            btnRegex.CheckedChanged += (s, e) => _searchManager.ToggleRegex();
-            btnWholeWord.CheckedChanged += (s, e) => _searchManager.ToggleWholeWord();
-        }
-
-        private async Task InitializeAsync()
-        {
-            if (IsUpdating)
-                return;
-            string discordName = string.Empty;
-
-            PokeTradeBotSWSH.SeedChecker = new Z3SeedSearchHandler<PK8>();
-            UpdateChecker updateChecker = new();
-
-            try
-            {
-                var (updateAvailable, _, _) = await UpdateChecker.CheckForUpdatesAsync();
-                hasUpdate = updateAvailable;
-            }
-            catch { }
-
-            if (File.Exists(Program.ConfigPath))
-            {
-                var lines = File.ReadAllText(Program.ConfigPath);
-                Config = JsonSerializer.Deserialize(lines, ProgramConfigContext.Default.ProgramConfig) ?? new ProgramConfig();
-                LogConfig.MaxArchiveFiles = Config.Hub.MaxArchiveFiles;
-                LogConfig.LoggingEnabled = Config.Hub.LoggingEnabled;
-                comboBox1.SelectedValue = (int)Config.Mode;
-
-                RunningEnvironment = GetRunner(Config);
-                foreach (var bot in Config.Bots)
-                {
-                    bot.Initialize();
-                    AddBot(bot);
-                }
-            }
-            else
-            {
-                Config = new ProgramConfig();
-                RunningEnvironment = GetRunner(Config);
-                Config.Hub.Folder.CreateDefaults(Program.WorkingDirectory);
-            }
-
-            RTB_Logs.MaxLength = 32767;
-            LoadControls();
-            Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
-            trayIcon.Text = Text;
-            _ = Task.Run(BotMonitor);
-            InitUtil.InitializeStubs(Config.Mode);
-            _isFormLoading = false;
-            UpdateBackgroundImage(Config.Mode);
-            LogUtil.LogInfo($"Bot initialization complete", "System");
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    this.InitWebServer();
-                }
-                catch (Exception ex)
-                {
-                    LogUtil.LogError($"Failed to initialize web server: {ex.Message}", "System");
-                }
-            });
-        }
-
-        #region Enhanced Search Implementation
-
-        private void LogSearchBox_TextChanged(object sender, EventArgs e)
-        {
-            _searchManager.UpdateSearch(logSearchBox.Text);
-        }
-
-        private void LogSearchBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            switch (e.KeyCode)
-            {
-                case Keys.Enter:
-                    e.SuppressKeyPress = true;
-                    if (e.Shift)
-                        _searchManager.FindPrevious();
-                    else
-                        _searchManager.FindNext();
-                    break;
-
-                case Keys.Escape:
-                    e.SuppressKeyPress = true;
-                    _searchManager.ClearSearch();
-                    logSearchBox.Clear();
-                    break;
-
-                case Keys.F when e.Control:
-                    e.SuppressKeyPress = true;
-                    logSearchBox.Focus();
-                    logSearchBox.SelectAll();
-                    break;
-            }
-        }
-
-        private void RTB_Logs_KeyDown(object sender, KeyEventArgs e)
-        {
-            switch (e.KeyCode)
-            {
-                case Keys.F when e.Control:
-                    e.SuppressKeyPress = true;
-                    logSearchBox.Focus();
-                    logSearchBox.SelectAll();
-                    break;
-
-                case Keys.F3:
-                    e.SuppressKeyPress = true;
-                    if (e.Shift)
-                        _searchManager.FindPrevious();
-                    else
-                        _searchManager.FindNext();
-                    break;
-            }
-        }
-
-        #endregion
-
-        private static IPokeBotRunner GetRunner(ProgramConfig cfg) => cfg.Mode switch
-        {
-            ProgramMode.SWSH => new PokeBotRunnerImpl<PK8>(cfg.Hub, new BotFactory8SWSH(), cfg),
-            ProgramMode.BDSP => new PokeBotRunnerImpl<PB8>(cfg.Hub, new BotFactory8BS(), cfg),
-            ProgramMode.LA => new PokeBotRunnerImpl<PA8>(cfg.Hub, new BotFactory8LA(), cfg),
-            ProgramMode.SV => new PokeBotRunnerImpl<PK9>(cfg.Hub, new BotFactory9SV(), cfg),
-            ProgramMode.LGPE => new PokeBotRunnerImpl<PB7>(cfg.Hub, new BotFactory7LGPE(), cfg),
-            _ => throw new IndexOutOfRangeException("Unsupported mode."),
-        };
-
-        private async Task BotMonitor()
-        {
-            while (!Disposing)
-            {
-                try
-                {
-                    foreach (var c in FLP_Bots.Controls.OfType<BotController>())
-                        c.ReadState();
-
-                    if (trayIcon != null && trayIcon.Visible && Config != null)
-                    {
-                        var runningBots = FLP_Bots.Controls.OfType<BotController>().Count(c => c.GetBot()?.IsRunning ?? false);
-                        var totalBots = FLP_Bots.Controls.OfType<BotController>().Count();
-                        string botTitle = string.IsNullOrWhiteSpace(Config.Hub.BotName) ? "PokéBot" : Config.Hub.BotName;
-                        trayIcon.Text = totalBots == 0
-                            ? $"{botTitle} - No bots configured"
-                            : $"{botTitle} - {runningBots}/{totalBots} bots running";
-                    }
-                }
-                catch
-                {
-                }
-                await Task.Delay(2_000).ConfigureAwait(false);
-            }
-        }
-
-        private void LoadControls()
-        {
-            PG_Hub.SelectedObject = RunningEnvironment.Config;
-            _autoSaveTimer = new System.Windows.Forms.Timer
-            {
-                Interval = 10_000,
-                Enabled = true
-            };
-            _autoSaveTimer.Tick += (s, e) => SaveCurrentConfig();
-            var routines = ((PokeRoutineType[])Enum.GetValues(typeof(PokeRoutineType))).Where(z => RunningEnvironment.SupportsRoutine(z));
-            var list = routines.Select(z => new ComboItem(z.ToString(), (int)z)).ToArray();
-            CB_Routine.DisplayMember = nameof(ComboItem.Text);
-            CB_Routine.ValueMember = nameof(ComboItem.Value);
-            CB_Routine.DataSource = list;
-            CB_Routine.SelectedValue = (int)PokeRoutineType.FlexTrade;
-
-            var protocols = (SwitchProtocol[])Enum.GetValues(typeof(SwitchProtocol));
-            var listP = protocols.Select(z => new ComboItem(z.ToString(), (int)z)).ToArray();
-            CB_Protocol.DisplayMember = nameof(ComboItem.Text);
-            CB_Protocol.ValueMember = nameof(ComboItem.Value);
-            CB_Protocol.DataSource = listP;
-            CB_Protocol.SelectedIndex = (int)SwitchProtocol.WiFi;
-
-            var gameModes = Enum.GetValues(typeof(ProgramMode))
-                .Cast<ProgramMode>()
-                .Where(m => m != ProgramMode.None)
-                .Select(mode => new { Text = mode.ToString(), Value = (int)mode })
-                .ToList();
-            comboBox1.DisplayMember = "Text";
-            comboBox1.ValueMember = "Value";
-            comboBox1.DataSource = gameModes;
+            var lines = File.ReadAllText(Program.ConfigPath);
+            Config = JsonSerializer.Deserialize(lines, ProgramConfigContext.Default.ProgramConfig) ?? new ProgramConfig();
+            LogConfig.MaxArchiveFiles = Config.Hub.MaxArchiveFiles;
+            LogConfig.LoggingEnabled = Config.Hub.LoggingEnabled;
             comboBox1.SelectedValue = (int)Config.Mode;
-
-            LogUtil.Forwarders.Add(new TextBoxForwarder(RTB_Logs));
+            RunningEnvironment = GetRunner(Config);
+            foreach (var bot in Config.Bots)
+            {
+                bot.Initialize();
+                AddBot(bot);
+            }
+        }
+        else
+        {
+            Config = new ProgramConfig();
+            RunningEnvironment = GetRunner(Config);
+            Config.Hub.Folder.CreateDefaults(Program.WorkingDirectory);
         }
 
-        private ProgramConfig GetCurrentConfiguration()
+        RTB_Logs.MaxLength = 32_767; // character length
+        LoadControls();
+        Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
+        _ = Task.Run(BotMonitor);
+        InitUtil.InitializeStubs(Config.Mode);
+        _isFormLoading = false;
+        UpdateBackgroundImage(Config.Mode);
+    }
+
+    private static IPokeBotRunner GetRunner(ProgramConfig cfg) => cfg.Mode switch
+    {
+        ProgramMode.SWSH => new PokeBotRunnerImpl<PK8>(cfg.Hub, new BotFactory8SWSH(), cfg),
+        ProgramMode.BDSP => new PokeBotRunnerImpl<PB8>(cfg.Hub, new BotFactory8BS(), cfg),
+        ProgramMode.LA => new PokeBotRunnerImpl<PA8>(cfg.Hub, new BotFactory8LA(), cfg),
+        ProgramMode.SV => new PokeBotRunnerImpl<PK9>(cfg.Hub, new BotFactory9SV(), cfg),
+        ProgramMode.LGPE => new PokeBotRunnerImpl<PB7>(cfg.Hub, new BotFactory7LGPE(), cfg),
+        _ => throw new IndexOutOfRangeException("Unsupported mode."),
+    };
+
+    private async Task BotMonitor()
+    {
+        while (!Disposing)
         {
-            if (Config == null)
-            {
-                throw new InvalidOperationException("Config has not been initialized because a valid license was not entered.");
-            }
-            Config.Bots = Bots.ToArray();
-            return Config;
-        }
-
-        private void Main_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            if (IsUpdating) return;
-
-            if (!_isReallyClosing && e.CloseReason == CloseReason.UserClosing)
-            {
-                e.Cancel = true;
-                MinimizeToTray();
-                return;
-            }
-            this.StopWebServer();
-
             try
             {
-                string? exePath = Application.ExecutablePath;
-                if (!string.IsNullOrEmpty(exePath))
-                {
-                    string? dirPath = Path.GetDirectoryName(exePath);
-                    if (!string.IsNullOrEmpty(dirPath))
-                    {
-                        string portInfoPath = Path.Combine(dirPath, $"MergeBot_{Environment.ProcessId}.port");
-                        if (File.Exists(portInfoPath))
-                            File.Delete(portInfoPath);
-                    }
-                }
+                foreach (var c in FLP_Bots.Controls.OfType<BotController>())
+                    c.ReadState();
             }
-            catch { }
-
-            if (_autoSaveTimer != null)
+            catch
             {
-                _autoSaveTimer.Stop();
-                _autoSaveTimer.Dispose();
+                // Updating the collection by adding/removing bots will change the iterator
+                // Can try a for-loop or ToArray, but those still don't prevent concurrent mutations of the array.
+                // Just try, and if failed, ignore. Next loop will be fine. Locks on the collection are kinda overkill, since this task is not critical.
             }
+            await Task.Delay(2_000).ConfigureAwait(false);
+        }
+    }
 
-            if (animationTimer != null)
-            {
-                animationTimer.Stop();
-                animationTimer.Dispose();
-            }
+    private void LoadControls()
+    {
+        MinimumSize = Size;
+        PG_Hub.SelectedObject = RunningEnvironment.Config;
 
-            if (trayIcon != null)
-            {
-                trayIcon.Visible = false;
-                trayIcon.Dispose();
-            }
+        var routines = ((PokeRoutineType[])Enum.GetValues(typeof(PokeRoutineType))).Where(z => RunningEnvironment.SupportsRoutine(z));
+        var list = routines.Select(z => new ComboItem(z.ToString(), (int)z)).ToArray();
+        CB_Routine.DisplayMember = nameof(ComboItem.Text);
+        CB_Routine.ValueMember = nameof(ComboItem.Value);
+        CB_Routine.DataSource = list;
+        CB_Routine.SelectedValue = (int)PokeRoutineType.FlexTrade; // default option
 
-            if (_logoBrush != null)
-            {
-                _logoBrush.Dispose();
-                _logoBrush = null;
-            }
+        var protocols = (SwitchProtocol[])Enum.GetValues(typeof(SwitchProtocol));
+        var listP = protocols.Select(z => new ComboItem(z.ToString(), (int)z)).ToArray();
+        CB_Protocol.DisplayMember = nameof(ComboItem.Text);
+        CB_Protocol.ValueMember = nameof(ComboItem.Value);
+        CB_Protocol.DataSource = listP;
+        CB_Protocol.SelectedIndex = (int)SwitchProtocol.WiFi; // default option
 
-            SaveCurrentConfig();
-            var bots = RunningEnvironment;
-            if (!bots.IsRunning)
-                return;
+        // Populate the game mode dropdown
+        var gameModes = Enum.GetValues(typeof(ProgramMode))
+            .Cast<ProgramMode>()
+            .Where(m => m != ProgramMode.None) // Exclude the 'None' value
+            .Select(mode => new { Text = mode.ToString(), Value = (int)mode })
+            .ToList();
 
-            async Task WaitUntilNotRunning()
-            {
-                while (bots.IsRunning)
-                    await Task.Delay(10).ConfigureAwait(false);
-            }
+        comboBox1.DisplayMember = "Text";
+        comboBox1.ValueMember = "Value";
+        comboBox1.DataSource = gameModes;
 
-            _isReallyClosing = true;
-            WindowState = FormWindowState.Minimized;
-            ShowInTaskbar = false;
-            bots.StopAll();
-            Task.WhenAny(WaitUntilNotRunning(), Task.Delay(5_000)).ConfigureAwait(true).GetAwaiter().GetResult();
+        // Set the current mode as selected in the dropdown
+        comboBox1.SelectedValue = (int)Config.Mode;
+
+        comboBox2.Items.Add("Light Mode");
+        comboBox2.Items.Add("Dark Mode");
+        comboBox2.Items.Add("Poke Mode");
+        comboBox2.Items.Add("Gengar Mode");
+        comboBox2.Items.Add("Sylveon Mode");
+
+        // Load the current theme from configuration and set it in the comboBox2
+        string theme = Config.Hub.ThemeOption;
+        if (string.IsNullOrEmpty(theme) || !comboBox2.Items.Contains(theme))
+        {
+            comboBox2.SelectedIndex = 0;  // Set default selection to Light Mode if ThemeOption is empty or invalid
+        }
+        else
+        {
+            comboBox2.SelectedItem = theme;  // Set the selected item in the combo box based on ThemeOption
+        }
+        switch (theme)
+        {
+            case "Dark Mode":
+                ApplyDarkTheme();
+                break;
+
+            case "Light Mode":
+                ApplyLightTheme();
+                break;
+
+            case "Poke Mode":
+                ApplyPokemonTheme();
+                break;
+
+            case "Gengar Mode":
+                ApplyGengarTheme();
+                break;
+
+            case "Sylveon Mode":
+                ApplySylveonTheme();
+                break;
+
+            default:
+                ApplyGengarTheme();
+                break;
         }
 
-        private void SaveCurrentConfig()
+        LogUtil.Forwarders.Add(new TextBoxForwarder(RTB_Logs));
+    }
+
+    private ProgramConfig GetCurrentConfiguration()
+    {
+        Config.Bots = [.. Bots];
+        return Config;
+    }
+
+    private void Main_FormClosing(object sender, FormClosingEventArgs e)
+    {
+        if (IsUpdating)
         {
-            var cfg = GetCurrentConfiguration();
-            var lines = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
-            File.WriteAllText(Program.ConfigPath, lines);
+            return;
+        }
+        SaveCurrentConfig();
+        var bots = RunningEnvironment;
+        if (!bots.IsRunning)
+            return;
+
+        async Task WaitUntilNotRunning()
+        {
+            while (bots.IsRunning)
+                await Task.Delay(10).ConfigureAwait(false);
         }
 
-        [JsonSerializable(typeof(ProgramConfig))]
-        [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-        public sealed partial class ProgramConfigContext : JsonSerializerContext
-        { }
+        // Try to let all bots hard-stop before ending execution of the entire program.
+        WindowState = FormWindowState.Minimized;
+        ShowInTaskbar = false;
+        bots.StopAll();
+        Task.WhenAny(WaitUntilNotRunning(), Task.Delay(5_000)).ConfigureAwait(true).GetAwaiter().GetResult();
+    }
 
-        private void B_Start_Click(object sender, EventArgs e)
+    private void SaveCurrentConfig()
+    {
+        var cfg = GetCurrentConfiguration();
+        var lines = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
+        File.WriteAllText(Program.ConfigPath, lines);
+    }
+
+    [JsonSerializable(typeof(ProgramConfig))]
+    [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    public sealed partial class ProgramConfigContext : JsonSerializerContext;
+
+    private void ComboBox1_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isFormLoading) return; // Check to avoid processing during form loading
+
+        if (comboBox1.SelectedValue is int selectedValue)
         {
-            SaveCurrentConfig();
+            ProgramMode newMode = (ProgramMode)selectedValue;
+            Config.Mode = newMode;
 
-            LogUtil.LogInfo("Starting all bots...", "Form");
+            SaveCurrentConfig();
+            UpdateRunnerAndUI();
+
+            UpdateBackgroundImage(newMode);
+        }
+    }
+
+    private void UpdateRunnerAndUI()
+    {
+        RunningEnvironment = GetRunner(Config);
+        Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
+    }
+
+    private void B_Start_Click(object sender, EventArgs e)
+    {
+        SaveCurrentConfig();
+
+        LogUtil.LogInfo("Starting all bots...", "Form");
+        RunningEnvironment.InitializeStart();
+        SendAll(BotControlCommand.Start);
+        Tab_Logs.Select();
+
+        if (Bots.Count == 0)
+            WinFormsUtil.Alert("No bots configured, but all supporting services have been started.");
+    }
+
+    private void B_RebootStop_Click(object sender, EventArgs e)
+    {
+        B_Stop_Click(sender, e);
+        Task.Run(async () =>
+        {
+            await Task.Delay(3_500).ConfigureAwait(false);
+            SaveCurrentConfig();
+            LogUtil.LogInfo("Restarting all the consoles...", "Form");
             RunningEnvironment.InitializeStart();
-            SendAll(BotControlCommand.Start);
-            btnNavLogs.PerformClick();
-
+            SendAll(BotControlCommand.RebootAndStop);
+            await Task.Delay(5_000).ConfigureAwait(false); // Add a delay before restarting the bot
+            SendAll(BotControlCommand.Start); // Start the bot after the delay
+            Tab_Logs.Select();
             if (Bots.Count == 0)
-                WinFormsUtil.Alert("No bots configured, but all supporting services have been started.");
+                WinFormsUtil.Alert("No bots configured, but all supporting services have been issued the reboot command.");
+        });
+    }
+
+    private void UpdateBackgroundImage(ProgramMode mode)
+    {
+        FLP_Bots.BackgroundImage = mode switch
+        {
+            ProgramMode.SV => Resources.sv_mode_image,
+            ProgramMode.SWSH => Resources.swsh_mode_image,
+            ProgramMode.BDSP => Resources.bdsp_mode_image,
+            ProgramMode.LA => Resources.pla_mode_image,
+            ProgramMode.LGPE => Resources.lgpe_mode_image,
+            _ => null,
+        };
+        FLP_Bots.BackgroundImageLayout = ImageLayout.Center;
+    }
+
+    private void SendAll(BotControlCommand cmd)
+    {
+        foreach (var c in FLP_Bots.Controls.OfType<BotController>())
+            c.SendCommand(cmd);
+    }
+
+    private void B_Stop_Click(object sender, EventArgs e)
+    {
+        var env = RunningEnvironment;
+        if (!env.IsRunning && (ModifierKeys & Keys.Alt) == 0)
+        {
+            WinFormsUtil.Alert("Nothing is currently running.");
+            return;
         }
 
-        private void B_RebootStop_Click(object sender, EventArgs e)
+        var cmd = BotControlCommand.Stop;
+
+        if ((ModifierKeys & Keys.Control) != 0 || (ModifierKeys & Keys.Shift) != 0) // either, because remembering which can be hard
         {
-            B_Stop_Click(sender, e);
-            Task.Run(async () =>
+            if (env.IsRunning)
             {
-                await Task.Delay(3_500).ConfigureAwait(false);
-                SaveCurrentConfig();
-                LogUtil.LogInfo("Restarting all the consoles...", "Form");
-                RunningEnvironment.InitializeStart();
-                SendAll(BotControlCommand.RebootAndStop);
-                await Task.Delay(5_000).ConfigureAwait(false);
-                SendAll(BotControlCommand.Start);
-                BeginInvoke((MethodInvoker)(() => btnNavLogs.PerformClick()));
-                if (Bots.Count == 0)
-                    WinFormsUtil.Alert("No bots configured, but all supporting services have been issued the reboot command.");
-            });
-        }
-
-        private async void Updater_Click(object sender, EventArgs e)
-        {
-            var (updateAvailable, updateRequired, newVersion) = await UpdateChecker.CheckForUpdatesAsync();
-            hasUpdate = updateAvailable;
-
-            if (!updateAvailable)
-            {
-                var result = MessageBox.Show(
-                    "You are on the latest version. Would you like to re-download the current version?",
-                    "Update Check",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-
-                if (result == DialogResult.Yes)
-                {
-                    UpdateForm updateForm = new(updateRequired, newVersion, updateAvailable: false);
-                    updateForm.ShowDialog();
-                }
+                WinFormsUtil.Alert("Commanding all bots to Idle.", "Press Stop (without a modifier key) to hard-stop and unlock control, or press Stop with the modifier key again to resume.");
+                cmd = BotControlCommand.Idle;
             }
             else
             {
-                UpdateForm updateForm = new(updateRequired, newVersion, updateAvailable: true);
+                WinFormsUtil.Alert("Commanding all bots to resume their original task.", "Press Stop (without a modifier key) to hard-stop and unlock control.");
+                cmd = BotControlCommand.Resume;
+            }
+        }
+        else
+        {
+            env.StopAll();
+        }
+        SendAll(cmd);
+    }
+
+    private void B_New_Click(object sender, EventArgs e)
+    {
+        var cfg = CreateNewBotConfig();
+        if (!AddBot(cfg))
+        {
+            WinFormsUtil.Alert("Unable to add bot; ensure details are valid and not duplicate with an already existing bot.");
+            return;
+        }
+        System.Media.SystemSounds.Asterisk.Play();
+    }
+
+    private async void Updater_Click(object sender, EventArgs e)
+    {
+        var (updateAvailable, updateRequired, newVersion) = await UpdateChecker.CheckForUpdatesAsync();
+        if (!updateAvailable)
+        {
+            var result = MessageBox.Show(
+                "You are on the latest version. Would you like to re-download the current version?",
+                "Update Check",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                UpdateForm updateForm = new UpdateForm(updateRequired, newVersion, updateAvailable: false);
                 updateForm.ShowDialog();
             }
         }
-
-        private void SendAll(BotControlCommand cmd)
+        else
         {
-            foreach (var c in FLP_Bots.Controls.OfType<BotController>())
-                c.SendCommand(cmd, false);
-
-            LogUtil.LogText($"All bots have been issued a command to {cmd}.");
+            UpdateForm updateForm = new UpdateForm(updateRequired, newVersion, updateAvailable: true);
+            updateForm.ShowDialog();
         }
-
-        private void B_Stop_Click(object sender, EventArgs e)
-        {
-            var env = RunningEnvironment;
-            if (!env.IsRunning && (ModifierKeys & Keys.Alt) == 0)
-            {
-                WinFormsUtil.Alert("Nothing is currently running.");
-                return;
-            }
-
-            var cmd = BotControlCommand.Stop;
-
-            if ((ModifierKeys & Keys.Control) != 0 || (ModifierKeys & Keys.Shift) != 0)
-            {
-                if (env.IsRunning)
-                {
-                    WinFormsUtil.Alert("Commanding all bots to Idle.", "Press Stop (without a modifier key) to hard-stop and unlock control, or press Stop with the modifier key again to resume.");
-                    cmd = BotControlCommand.Idle;
-                }
-                else
-                {
-                    WinFormsUtil.Alert("Commanding all bots to resume their original task.", "Press Stop (without a modifier key) to hard-stop and unlock control.");
-                    cmd = BotControlCommand.Resume;
-                }
-            }
-            else
-            {
-                env.StopAll();
-            }
-            SendAll(cmd);
-        }
-
-        private void B_New_Click(object sender, EventArgs e)
-        {
-            var cfg = CreateNewBotConfig();
-            if (!AddBot(cfg))
-            {
-                WinFormsUtil.Alert("Unable to add bot; ensure details are valid and not duplicate with an already existing bot.");
-                return;
-            }
-            System.Media.SystemSounds.Asterisk.Play();
-        }
-
-        private bool AddBot(PokeBotState cfg)
-        {
-            if (!cfg.IsValid())
-                return false;
-
-            if (Bots.Any(z => z.Connection.Equals(cfg.Connection)))
-                return false;
-
-            PokeRoutineExecutorBase newBot;
-            try
-            {
-                Console.WriteLine($"Current Mode ({Config.Mode}) does not support this type of bot ({cfg.CurrentRoutineType}).");
-                newBot = RunningEnvironment.CreateBotFromConfig(cfg);
-            }
-            catch
-            {
-                return false;
-            }
-
-            try
-            {
-                RunningEnvironment.Add(newBot);
-            }
-            catch (ArgumentException ex)
-            {
-                WinFormsUtil.Error(ex.Message);
-                return false;
-            }
-
-            AddBotControl(cfg);
-            Bots.Add(cfg);
-            return true;
-        }
-
-        private void AddBotControl(PokeBotState cfg)
-        {
-            int scrollBarWidth = SystemInformation.VerticalScrollBarWidth;
-            int availableWidth = FLP_Bots.ClientSize.Width;
-
-            if (FLP_Bots.VerticalScroll.Visible)
-            {
-                availableWidth -= scrollBarWidth;
-            }
-
-            int botWidth = Math.Max(400, availableWidth - 20);
-
-            var row = new BotController { Width = botWidth };
-            row.Initialize(RunningEnvironment, cfg);
-            FLP_Bots.Controls.Add(row);
-            FLP_Bots.SetFlowBreak(row, true);
-
-            row.Click += (s, e) =>
-            {
-                var details = cfg.Connection;
-                TB_IP.Text = details.IP;
-                NUD_Port.Value = details.Port;
-                CB_Protocol.SelectedIndex = (int)details.Protocol;
-                CB_Routine.SelectedValue = (int)cfg.InitialRoutine;
-            };
-
-            row.Remove += (s, e) =>
-            {
-                Bots.Remove(row.State);
-                RunningEnvironment.Remove(row.State, !RunningEnvironment.Config.SkipConsoleBotCreation);
-                FLP_Bots.Controls.Remove(row);
-            };
-        }
-
-        private PokeBotState CreateNewBotConfig()
-        {
-            var ip = TB_IP.Text;
-            var port = (int)NUD_Port.Value;
-            var cfg = BotConfigUtil.GetConfig<SwitchConnectionConfig>(ip, port);
-            cfg.Protocol = (SwitchProtocol)WinFormsUtil.GetIndex(CB_Protocol);
-
-            var pk = new PokeBotState { Connection = cfg };
-            var type = (PokeRoutineType)WinFormsUtil.GetIndex(CB_Routine);
-            pk.Initialize(type);
-            return pk;
-        }
-
-        private void FLP_Bots_Resize(object sender, EventArgs e)
-        {
-            int scrollBarWidth = SystemInformation.VerticalScrollBarWidth;
-            int availableWidth = FLP_Bots.ClientSize.Width;
-
-            if (FLP_Bots.VerticalScroll.Visible)
-            {
-                availableWidth -= scrollBarWidth;
-            }
-
-            int botWidth = Math.Max(400, availableWidth - 20);
-
-            foreach (var c in FLP_Bots.Controls.OfType<BotController>())
-            {
-                c.Width = botWidth;
-            }
-        }
-
-        private void CB_Protocol_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            TB_IP.Visible = CB_Protocol.SelectedIndex == 0;
-        }
-
-        private void ComboBox1_SelectedIndexChanged(object? sender, EventArgs e)
-        {
-            if (_isFormLoading) return;
-            if (comboBox1.SelectedValue is int selectedValue)
-            {
-                ProgramMode newMode = (ProgramMode)selectedValue;
-                Config.Mode = newMode;
-                SaveCurrentConfig();
-                UpdateRunnerAndUI();
-                UpdateBackgroundImage(newMode);
-            }
-        }
-
-        private void UpdateRunnerAndUI()
-        {
-            RunningEnvironment = GetRunner(Config);
-            Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
-        }
-
-        private void UpdateStatusIndicatorPulse()
-        {
-            var now = DateTime.Now;
-            if ((now - lastIndicatorUpdate).TotalMilliseconds < PULSE_UPDATE_INTERVAL_MS)
-                return;
-
-            lastIndicatorUpdate = now;
-
-            pulsePhase += 0.1;
-            if (pulsePhase > Math.PI * 2)
-                pulsePhase -= Math.PI * 2;
-
-            Color newColor;
-
-            if (hasUpdate)
-            {
-                double pulse = (Math.Sin(pulsePhase) + 1) / 2;
-
-                int minAlpha = 150;
-                int maxAlpha = 255;
-                int alpha = (int)(minAlpha + (maxAlpha - minAlpha) * pulse);
-
-                newColor = Color.FromArgb(alpha, 87, 242, 135);
-            }
-            else
-            {
-                newColor = Color.FromArgb(100, 100, 100);
-            }
-
-            if (newColor != lastIndicatorColor)
-            {
-                lastIndicatorColor = newColor;
-                statusIndicator.BackColor = newColor;
-                statusIndicator.Invalidate();
-
-                if (hasUpdate && btnUpdate != null)
-                {
-                    btnUpdate.Invalidate(new Rectangle(
-                        statusIndicator.Left - 10,
-                        statusIndicator.Top - 10,
-                        statusIndicator.Width + 20,
-                        statusIndicator.Height + 20
-                    ));
-                }
-            }
-        }
-
-        private void UpdateBackgroundImage(ProgramMode mode)
-        {
-            try
-            {
-                _currentModeImage = mode switch
-                {
-                    ProgramMode.SV => Resources.sv_mode_image,
-                    ProgramMode.SWSH => Resources.swsh_mode_image,
-                    ProgramMode.BDSP => Resources.bdsp_mode_image,
-                    ProgramMode.LA => Resources.pla_mode_image,
-                    ProgramMode.LGPE => Resources.lgpe_mode_image,
-                    _ => null,
-                };
-                FLP_Bots.Invalidate();
-            }
-            catch
-            {
-                _currentModeImage = null;
-            }
-        }
-
-        #region Tray Icon Methods
-
-        private void TrayIcon_DoubleClick(object sender, EventArgs e)
-        {
-            ShowFromTray();
-        }
-
-        private void TrayMenuShow_Click(object sender, EventArgs e)
-        {
-            ShowFromTray();
-        }
-
-        private void TrayMenuExit_Click(object sender, EventArgs e)
-        {
-            _isReallyClosing = true;
-            Close();
-        }
-
-        private void ShowFromTray()
-        {
-            Show();
-            WindowState = FormWindowState.Normal;
-            ShowInTaskbar = true;
-            trayIcon.Visible = false;
-            BringToFront();
-            Activate();
-
-            int headerHeight = headerPanel.Height + 10;
-
-            if (hubPanel.Padding.Top <= 40)
-                hubPanel.Padding = new Padding(40, headerHeight, 40, 40);
-
-            if (logsPanel.Padding.Top <= 40)
-                logsPanel.Padding = new Padding(40, headerHeight, 40, 40);
-
-            hubPanel.PerformLayout();
-            PG_Hub.Refresh();
-
-            logsPanel.PerformLayout();
-            RTB_Logs.Refresh();
-        }
-
-        private void MinimizeToTray()
-        {
-            Hide();
-            ShowInTaskbar = false;
-            trayIcon.Visible = true;
-
-            var runningBots = FLP_Bots.Controls.OfType<BotController>().Count(c => c.GetBot()?.IsRunning ?? false);
-            var totalBots = FLP_Bots.Controls.OfType<BotController>().Count();
-
-            string message = totalBots == 0
-                ? "No bots configured"
-                : $"{runningBots} of {totalBots} bots running";
-
-            trayIcon.ShowBalloonTip(2000, "PokéBot Minimized", message, ToolTipIcon.Info);
-        }
-
-        private void Main_Resize(object sender, EventArgs e)
-        {
-            if (WindowState == FormWindowState.Minimized && !_isReallyClosing)
-            {
-                MinimizeToTray();
-            }
-        }
-
-        #endregion
     }
 
-    public sealed class SearchManager
+    private bool AddBot(PokeBotState cfg)
     {
-        private readonly RichTextBox _textBox;
-        private readonly Label _statusLabel;
-        private readonly List<SearchMatch> _matches = new();
-        private int _currentIndex = -1;
-        private string _lastSearchText = string.Empty;
-        private bool _caseSensitive = false;
-        private bool _useRegex = false;
-        private bool _wholeWord = false;
+        if (!cfg.IsValid())
+            return false;
 
-        public SearchManager(RichTextBox textBox, Label statusLabel)
+        if (Bots.Any(z => z.Connection.Equals(cfg.Connection)))
+            return false;
+
+        PokeRoutineExecutorBase newBot;
+        try
         {
-            _textBox = textBox ?? throw new ArgumentNullException(nameof(textBox));
-            _statusLabel = statusLabel ?? throw new ArgumentNullException(nameof(statusLabel));
+            Console.WriteLine($"Current Mode ({Config.Mode}) does not support this type of bot ({cfg.CurrentRoutineType}).");
+            newBot = RunningEnvironment.CreateBotFromConfig(cfg);
+        }
+        catch
+        {
+            return false;
         }
 
-        public void UpdateSearch(string searchText)
+        try
         {
-            if (string.IsNullOrEmpty(searchText))
+            RunningEnvironment.Add(newBot);
+        }
+        catch (ArgumentException ex)
+        {
+            WinFormsUtil.Error(ex.Message);
+            return false;
+        }
+
+        AddBotControl(cfg);
+        Bots.Add(cfg);
+        return true;
+    }
+
+    private void AddBotControl(PokeBotState cfg)
+    {
+        var row = new BotController { Width = FLP_Bots.Width };
+        row.Initialize(RunningEnvironment, cfg);
+        FLP_Bots.Controls.Add(row);
+        FLP_Bots.SetFlowBreak(row, true);
+        row.Click += (s, e) =>
+        {
+            var details = cfg.Connection;
+            TB_IP.Text = details.IP;
+            NUD_Port.Value = details.Port;
+            CB_Protocol.SelectedIndex = (int)details.Protocol;
+            CB_Routine.SelectedValue = (int)cfg.InitialRoutine;
+        };
+
+        row.Remove += (s, e) =>
+        {
+            Bots.Remove(row.State);
+            RunningEnvironment.Remove(row.State, !RunningEnvironment.Config.SkipConsoleBotCreation);
+            FLP_Bots.Controls.Remove(row);
+        };
+    }
+
+    private PokeBotState CreateNewBotConfig()
+    {
+        var ip = TB_IP.Text;
+        var port = (int)NUD_Port.Value;
+        var cfg = BotConfigUtil.GetConfig<SwitchConnectionConfig>(ip, port);
+        cfg.Protocol = (SwitchProtocol)WinFormsUtil.GetIndex(CB_Protocol);
+
+        var pk = new PokeBotState { Connection = cfg };
+        var type = (PokeRoutineType)WinFormsUtil.GetIndex(CB_Routine);
+        pk.Initialize(type);
+        return pk;
+    }
+
+    private void FLP_Bots_Resize(object sender, EventArgs e)
+    {
+        foreach (var c in FLP_Bots.Controls.OfType<BotController>())
+            c.Width = FLP_Bots.Width;
+    }
+
+    private void CB_Protocol_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        TB_IP.Visible = CB_Protocol.SelectedIndex == 0;
+    }
+
+    private void ComboBox2_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            string selectedTheme = comboBox.SelectedItem.ToString();
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8601 // Possible null reference assignment.
+            Config.Hub.ThemeOption = selectedTheme;  // Save the selected theme to the config
+#pragma warning restore CS8601 // Possible null reference assignment.
+            SaveCurrentConfig();  // Save the config to file
+
+            switch (selectedTheme)
             {
-                ClearSearch();
-                return;
+                case "Light Mode":
+                    ApplyLightTheme();
+                    break;
+
+                case "Dark Mode":
+                    ApplyDarkTheme();
+                    break;
+
+                case "Poke Mode":
+                    ApplyPokemonTheme();
+                    break;
+
+                case "Gengar Mode":
+                    ApplyGengarTheme();
+                    break;
+
+                case "Sylveon Mode":
+                    ApplySylveonTheme();
+                    break;
+
+                default:
+                    ApplyGengarTheme();
+                    break;
             }
-
-            if (searchText == _lastSearchText)
-                return;
-
-            _lastSearchText = searchText;
-            PerformSearch(searchText);
-        }
-
-        public void FindNext()
-        {
-            if (_matches.Count == 0)
-                return;
-
-            _currentIndex = (_currentIndex + 1) % _matches.Count;
-            HighlightCurrentMatch();
-        }
-
-        public void FindPrevious()
-        {
-            if (_matches.Count == 0)
-                return;
-
-            _currentIndex = _currentIndex == 0 ? _matches.Count - 1 : _currentIndex - 1;
-            HighlightCurrentMatch();
-        }
-
-        public void ClearSearch()
-        {
-            ClearHighlights();
-            _matches.Clear();
-            _currentIndex = -1;
-            _lastSearchText = string.Empty;
-            _statusLabel.Text = string.Empty;
-        }
-
-        public void ToggleCaseSensitive()
-        {
-            _caseSensitive = !_caseSensitive;
-            if (!string.IsNullOrEmpty(_lastSearchText))
-                PerformSearch(_lastSearchText);
-        }
-
-        public void ToggleRegex()
-        {
-            _useRegex = !_useRegex;
-            if (!string.IsNullOrEmpty(_lastSearchText))
-                PerformSearch(_lastSearchText);
-        }
-
-        public void ToggleWholeWord()
-        {
-            _wholeWord = !_wholeWord;
-            if (!string.IsNullOrEmpty(_lastSearchText))
-                PerformSearch(_lastSearchText);
-        }
-
-        private void PerformSearch(string searchText)
-        {
-            ClearHighlights();
-            _matches.Clear();
-            _currentIndex = -1;
-
-            if (string.IsNullOrEmpty(searchText))
-            {
-                _statusLabel.Text = string.Empty;
-                return;
-            }
-
-            try
-            {
-                var text = _textBox.Text;
-                var matches = _useRegex ? FindRegexMatches(text, searchText) : FindTextMatches(text, searchText);
-
-                _matches.AddRange(matches);
-
-                if (_matches.Count > 0)
-                {
-                    HighlightAllMatches();
-                    _currentIndex = 0;
-                    HighlightCurrentMatch();
-                    _statusLabel.Text = $"1 of {_matches.Count}";
-                }
-                else
-                {
-                    _statusLabel.Text = "No matches found";
-                }
-            }
-            catch (ArgumentException)
-            {
-                _statusLabel.Text = "Invalid regex pattern";
-            }
-        }
-
-        private IEnumerable<SearchMatch> FindTextMatches(string text, string searchText)
-        {
-            var comparison = _caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-            var searchPattern = _wholeWord ? $@"\b{Regex.Escape(searchText)}\b" : searchText;
-
-            if (_wholeWord)
-            {
-                var regex = new Regex(searchPattern, _caseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase);
-                return regex.Matches(text).Cast<Match>()
-                    .Select(m => new SearchMatch(m.Index, m.Length));
-            }
-
-            var matches = new List<SearchMatch>();
-            int index = 0;
-            while ((index = text.IndexOf(searchText, index, comparison)) != -1)
-            {
-                matches.Add(new SearchMatch(index, searchText.Length));
-                index += searchText.Length;
-            }
-            return matches;
-        }
-
-        private IEnumerable<SearchMatch> FindRegexMatches(string text, string pattern)
-        {
-            var options = _caseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
-            var regex = new Regex(pattern, options);
-            return regex.Matches(text).Cast<Match>()
-                .Select(m => new SearchMatch(m.Index, m.Length));
-        }
-
-        private void HighlightAllMatches()
-        {
-            foreach (var match in _matches)
-            {
-                _textBox.Select(match.Start, match.Length);
-                _textBox.SelectionBackColor = Color.FromArgb(88, 101, 242);
-            }
-        }
-
-        private void HighlightCurrentMatch()
-        {
-            if (_currentIndex < 0 || _currentIndex >= _matches.Count)
-                return;
-
-            ClearCurrentHighlight();
-
-            var currentMatch = _matches[_currentIndex];
-            _textBox.Select(currentMatch.Start, currentMatch.Length);
-            _textBox.SelectionBackColor = Color.FromArgb(87, 242, 135);
-            _textBox.ScrollToCaret();
-
-            _statusLabel.Text = $"{_currentIndex + 1} of {_matches.Count}";
-        }
-
-        private void ClearCurrentHighlight()
-        {
-            if (_currentIndex >= 0 && _currentIndex < _matches.Count)
-            {
-                var match = _matches[_currentIndex];
-                _textBox.Select(match.Start, match.Length);
-                _textBox.SelectionBackColor = Color.FromArgb(88, 101, 242);
-            }
-        }
-
-        private void ClearHighlights()
-        {
-            _textBox.SelectAll();
-            _textBox.SelectionBackColor = _textBox.BackColor;
-            _textBox.DeselectAll();
         }
     }
 
-    public readonly record struct SearchMatch(int Start, int Length);
+    private void ApplySylveonTheme()
+    {
+        // Define Sylveon-theme colors
+        Color SoftPink = Color.FromArgb(255, 182, 193);   // A soft pink color inspired by Sylveon's body
+        Color DeepPink = Color.FromArgb(255, 105, 180);   // A deeper pink for contrast and visual interest
+        Color SkyBlue = Color.FromArgb(135, 206, 250);    // A soft blue color inspired by Sylveon's eyes and ribbons
+        Color DeepBlue = Color.FromArgb(70, 130, 180);   // A deeper blue for contrast
+        Color ElegantWhite = Color.FromArgb(255, 255, 255);// An elegant white for background and contrast
+        Color StartGreen = Color.FromArgb(10, 74, 27);// Start Button
+        Color StopRed = Color.FromArgb(74, 10, 10);// Stop Button
+        Color RebootBlue = Color.FromArgb(10, 35, 74);// Reboot Button
+        Color UpdateGray = Color.FromArgb(54, 69, 79); // Update Button
+
+        // Set the background color of the form
+        BackColor = ElegantWhite;
+
+        // Set the foreground color of the form (text color)
+        ForeColor = DeepBlue;
+
+        // Set the background color of the tab control
+        TC_Main.BackColor = SkyBlue;
+
+        // Set the background color of each tab page
+        foreach (TabPage page in TC_Main.TabPages)
+        {
+            page.BackColor = ElegantWhite;
+        }
+
+        // Set the background color of the property grid
+        PG_Hub.BackColor = ElegantWhite;
+        PG_Hub.LineColor = SkyBlue;
+        PG_Hub.CategoryForeColor = DeepBlue;
+        PG_Hub.CategorySplitterColor = SkyBlue;
+        PG_Hub.HelpBackColor = SoftPink;
+        PG_Hub.HelpForeColor = DeepBlue;
+        PG_Hub.ViewBackColor = ElegantWhite;
+        PG_Hub.ViewForeColor = DeepBlue;
+
+        // Set the background color of the rich text box
+        RTB_Logs.BackColor = SoftPink;
+        RTB_Logs.ForeColor = DeepBlue;
+
+        // Set colors for other controls
+        TB_IP.BackColor = SkyBlue;
+        TB_IP.ForeColor = DeepBlue;
+
+        CB_Routine.BackColor = SkyBlue;
+        CB_Routine.ForeColor = DeepBlue;
+
+        NUD_Port.BackColor = SkyBlue;
+        NUD_Port.ForeColor = DeepBlue;
+
+        B_New.BackColor = DeepPink;
+        B_New.ForeColor = ElegantWhite;
+
+        FLP_Bots.BackColor = ElegantWhite;
+
+        CB_Protocol.BackColor = SkyBlue;
+        CB_Protocol.ForeColor = DeepBlue;
+
+        comboBox1.BackColor = SkyBlue;
+        comboBox1.ForeColor = DeepBlue;
+
+        B_Stop.BackColor = StopRed;
+        B_Stop.ForeColor = ElegantWhite;
+
+        B_Start.BackColor = StartGreen;
+        B_Start.ForeColor = ElegantWhite;
+
+        B_RebootStop.BackColor = RebootBlue;
+        B_RebootStop.ForeColor = ElegantWhite;
+    }
+
+    private void ApplyGengarTheme()
+    {
+        // Define Gengar-theme colors
+        Color MainPurple = Color.FromArgb(60, 0, 60); // A dark, deep, scary purple for the main UI
+        Color DarkShadow = Color.FromArgb(30, 0, 30); // A deeper shade for shadowing and contrast
+        Color LightText = Color.FromArgb(230, 230, 230); // A light color for fonts and text
+        Color HauntingBlue = Color.FromArgb(80, 80, 160); // A haunting blue for accenting and highlights
+        Color MidnightBlack = Color.FromArgb(25, 25, 35); // A near-black for the darkest areas
+        Color StartGreen = Color.FromArgb(10, 74, 27); // Start Button
+        Color StopRed = Color.FromArgb(74, 10, 10); // Stop Button
+        Color RebootBlue = Color.FromArgb(10, 35, 74); // Reboot Button
+        Color UpdateGray = Color.FromArgb(54, 69, 79); // Update Button
+
+        // Set the background color of the form
+        BackColor = MidnightBlack;
+
+        // Set the foreground color of the form (text color)
+        ForeColor = LightText;
+
+        // Set the background color of the tab control
+        TC_Main.BackColor = MainPurple;
+
+        // Set the background color of each tab page
+        foreach (TabPage page in TC_Main.TabPages)
+        {
+            page.BackColor = DarkShadow;
+        }
+
+        // Set the background color of the property grid
+        PG_Hub.BackColor = DarkShadow;
+        PG_Hub.LineColor = HauntingBlue;
+        PG_Hub.CategoryForeColor = LightText;
+        PG_Hub.CategorySplitterColor = HauntingBlue;
+        PG_Hub.HelpBackColor = DarkShadow;
+        PG_Hub.HelpForeColor = LightText;
+        PG_Hub.ViewBackColor = DarkShadow;
+        PG_Hub.ViewForeColor = LightText;
+
+        // Set the background color of the rich text box
+        RTB_Logs.BackColor = MidnightBlack;
+        RTB_Logs.ForeColor = LightText;
+
+        // Set colors for other controls
+        TB_IP.BackColor = MainPurple;
+        TB_IP.ForeColor = LightText;
+        CB_Routine.BackColor = MainPurple;
+        CB_Routine.ForeColor = LightText;
+        NUD_Port.BackColor = MainPurple;
+        NUD_Port.ForeColor = LightText;
+        B_New.BackColor = HauntingBlue;
+        B_New.ForeColor = LightText;
+        FLP_Bots.BackColor = DarkShadow;
+        CB_Protocol.BackColor = MainPurple;
+        CB_Protocol.ForeColor = LightText;
+        comboBox1.BackColor = MainPurple;
+        comboBox1.ForeColor = LightText;
+        B_Stop.BackColor = StopRed;
+        B_Stop.ForeColor = LightText;
+        B_Start.BackColor = StartGreen;
+        B_Start.ForeColor = LightText;
+        B_RebootStop.BackColor = RebootBlue;
+        B_RebootStop.ForeColor = LightText;
+    }
+
+    private void ApplyLightTheme()
+    {
+        // Define the color palette
+        Color SoftBlue = Color.FromArgb(235, 245, 251);
+        Color GentleGrey = Color.FromArgb(245, 245, 245);
+        Color DarkBlue = Color.FromArgb(26, 13, 171);
+        Color ElegantWhite = Color.FromArgb(255, 255, 255);// An elegant white for background and contrast
+        Color StartGreen = Color.FromArgb(10, 74, 27);// Start Button
+        Color StopRed = Color.FromArgb(74, 10, 10);// Stop Button
+        Color RebootBlue = Color.FromArgb(10, 35, 74);// Reboot Button
+        Color UpdateGray = Color.FromArgb(54, 69, 79); // Update Button
+
+        // Set the background color of the form
+        BackColor = GentleGrey;
+
+        // Set the foreground color of the form (text color)
+        ForeColor = DarkBlue;
+
+        // Set the background color of the tab control
+        TC_Main.BackColor = SoftBlue;
+
+        // Set the background color of each tab page
+        foreach (TabPage page in TC_Main.TabPages)
+        {
+            page.BackColor = GentleGrey;
+        }
+
+        // Set the background color of the property grid
+        PG_Hub.BackColor = GentleGrey;
+        PG_Hub.LineColor = SoftBlue;
+        PG_Hub.CategoryForeColor = DarkBlue;
+        PG_Hub.CategorySplitterColor = SoftBlue;
+        PG_Hub.HelpBackColor = GentleGrey;
+        PG_Hub.HelpForeColor = DarkBlue;
+        PG_Hub.ViewBackColor = GentleGrey;
+        PG_Hub.ViewForeColor = DarkBlue;
+
+        // Set the background color of the rich text box
+        RTB_Logs.BackColor = Color.White;
+        RTB_Logs.ForeColor = DarkBlue;
+
+        // Set colors for other controls
+        TB_IP.BackColor = Color.White;
+        TB_IP.ForeColor = DarkBlue;
+
+        CB_Routine.BackColor = Color.White;
+        CB_Routine.ForeColor = DarkBlue;
+
+        NUD_Port.BackColor = Color.White;
+        NUD_Port.ForeColor = DarkBlue;
+
+        B_New.BackColor = SoftBlue;
+        B_New.ForeColor = DarkBlue;
+
+        FLP_Bots.BackColor = GentleGrey;
+
+        CB_Protocol.BackColor = Color.White;
+        CB_Protocol.ForeColor = DarkBlue;
+
+        comboBox1.BackColor = Color.White;
+        comboBox1.ForeColor = DarkBlue;
+
+        B_Stop.BackColor = StopRed;
+        B_Stop.ForeColor = ElegantWhite;
+
+        B_Start.BackColor = StartGreen;
+        B_Start.ForeColor = ElegantWhite;
+
+        B_RebootStop.BackColor = RebootBlue;
+        B_RebootStop.ForeColor = ElegantWhite;
+    }
+
+    private void ApplyPokemonTheme()
+    {
+        // Define Poke-theme colors
+        Color PokeRed = Color.FromArgb(206, 12, 30);      // A classic red tone reminiscent of the Pokeball
+        Color DarkPokeRed = Color.FromArgb(164, 10, 24);  // A darker shade of the PokeRed for contrast and depth
+        Color SleekGrey = Color.FromArgb(46, 49, 54);     // A sleek grey for background and contrast
+        Color SoftWhite = Color.FromArgb(230, 230, 230);  // A soft white for text and borders
+        Color MidnightBlack = Color.FromArgb(18, 19, 20); // A near-black for darker elements and depth
+        Color ElegantWhite = Color.FromArgb(255, 255, 255);// An elegant white for background and contrast
+        Color StartGreen = Color.FromArgb(10, 74, 27);// Start Button
+        Color StopRed = Color.FromArgb(74, 10, 10);// Stop Button
+        Color RebootBlue = Color.FromArgb(10, 35, 74);// Reboot Button
+        Color UpdateGray = Color.FromArgb(54, 69, 79);// Update Button
+
+        // Set the background color of the form
+        BackColor = SleekGrey;
+
+        // Set the foreground color of the form (text color)
+        ForeColor = SoftWhite;
+
+        // Set the background color of the tab control
+        TC_Main.BackColor = DarkPokeRed;
+
+        // Set the background color of each tab page
+        foreach (TabPage page in TC_Main.TabPages)
+        {
+            page.BackColor = SleekGrey;
+        }
+
+        // Set the background color of the property grid
+        PG_Hub.BackColor = SleekGrey;
+        PG_Hub.LineColor = DarkPokeRed;
+        PG_Hub.CategoryForeColor = SoftWhite;
+        PG_Hub.CategorySplitterColor = DarkPokeRed;
+        PG_Hub.HelpBackColor = SleekGrey;
+        PG_Hub.HelpForeColor = SoftWhite;
+        PG_Hub.ViewBackColor = SleekGrey;
+        PG_Hub.ViewForeColor = SoftWhite;
+
+        // Set the background color of the rich text box
+        RTB_Logs.BackColor = MidnightBlack;
+        RTB_Logs.ForeColor = SoftWhite;
+
+        // Set colors for other controls
+        TB_IP.BackColor = DarkPokeRed;
+        TB_IP.ForeColor = SoftWhite;
+
+        CB_Routine.BackColor = DarkPokeRed;
+        CB_Routine.ForeColor = SoftWhite;
+
+        NUD_Port.BackColor = DarkPokeRed;
+        NUD_Port.ForeColor = SoftWhite;
+
+        B_New.BackColor = PokeRed;
+        B_New.ForeColor = SoftWhite;
+
+        FLP_Bots.BackColor = SleekGrey;
+
+        CB_Protocol.BackColor = DarkPokeRed;
+        CB_Protocol.ForeColor = SoftWhite;
+
+        comboBox1.BackColor = DarkPokeRed;
+        comboBox1.ForeColor = SoftWhite;
+
+        B_Stop.BackColor = StopRed;
+        B_Stop.ForeColor = ElegantWhite;
+
+        B_Start.BackColor = StartGreen;
+        B_Start.ForeColor = ElegantWhite;
+
+        B_RebootStop.BackColor = RebootBlue;
+        B_RebootStop.ForeColor = ElegantWhite;
+    }
+
+    private void ApplyDarkTheme()
+    {
+        // Define the dark theme colors
+        Color DarkRed = Color.FromArgb(90, 0, 0);
+        Color DarkGrey = Color.FromArgb(30, 30, 30);
+        Color LightGrey = Color.FromArgb(60, 60, 60);
+        Color SoftWhite = Color.FromArgb(245, 245, 245);
+        Color ElegantWhite = Color.FromArgb(255, 255, 255);// An elegant white for background and contrast
+        Color StartGreen = Color.FromArgb(10, 74, 27);// Start Button
+        Color StopRed = Color.FromArgb(74, 10, 10);// Stop Button
+        Color RebootBlue = Color.FromArgb(10, 35, 74);// Reboot Button
+        Color UpdateGray = Color.FromArgb(54, 69, 79);// Update Button
+
+        // Set the background color of the form
+        BackColor = DarkGrey;
+
+        // Set the foreground color of the form (text color)
+        ForeColor = SoftWhite;
+
+        // Set the background color of the tab control
+        TC_Main.BackColor = LightGrey;
+
+        // Set the background color of each tab page
+        foreach (TabPage page in TC_Main.TabPages)
+        {
+            page.BackColor = DarkGrey;
+        }
+
+        // Set the background color of the property grid
+        PG_Hub.BackColor = DarkGrey;
+        PG_Hub.LineColor = LightGrey;
+        PG_Hub.CategoryForeColor = SoftWhite;
+        PG_Hub.CategorySplitterColor = LightGrey;
+        PG_Hub.HelpBackColor = DarkGrey;
+        PG_Hub.HelpForeColor = SoftWhite;
+        PG_Hub.ViewBackColor = DarkGrey;
+        PG_Hub.ViewForeColor = SoftWhite;
+
+        // Set the background color of the rich text box
+        RTB_Logs.BackColor = DarkGrey;
+        RTB_Logs.ForeColor = SoftWhite;
+
+        // Set colors for other controls
+        TB_IP.BackColor = LightGrey;
+        TB_IP.ForeColor = SoftWhite;
+
+        CB_Routine.BackColor = LightGrey;
+        CB_Routine.ForeColor = SoftWhite;
+
+        NUD_Port.BackColor = LightGrey;
+        NUD_Port.ForeColor = SoftWhite;
+
+        B_New.BackColor = DarkRed;
+        B_New.ForeColor = SoftWhite;
+
+        FLP_Bots.BackColor = DarkGrey;
+
+        CB_Protocol.BackColor = LightGrey;
+        CB_Protocol.ForeColor = SoftWhite;
+
+        comboBox1.BackColor = LightGrey;
+        comboBox1.ForeColor = SoftWhite;
+
+        B_Stop.BackColor = StopRed;
+        B_Stop.ForeColor = ElegantWhite;
+
+        B_Start.BackColor = StartGreen;
+        B_Start.ForeColor = ElegantWhite;
+
+        B_RebootStop.BackColor = RebootBlue;
+        B_RebootStop.ForeColor = ElegantWhite;
+    }
 }
