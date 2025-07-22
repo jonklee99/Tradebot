@@ -456,7 +456,6 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
 
             Log($"Found Link Trade partner: {trainerName}-{trainerTID} (ID: {trainerNID})");
             if (completedTrades == 0 || startingDetail.TotalBatchTrades == 1)
-                poke.SendNotification(this, $"Found Link Trade partner: {trainerName}. **TID**: {trainerTID} **SID**: {trainerSID}. Waiting for a Pokémon...");
 
             if (hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
             {
