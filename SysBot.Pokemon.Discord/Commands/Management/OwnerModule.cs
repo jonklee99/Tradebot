@@ -403,21 +403,21 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         Environment.Exit(0);
     }
 
-    [Command("dm")]
-    [Summary("Sends a direct message to a specified user.")]
-    [RequireOwner]
-    public async Task DMUserAsync(SocketUser user, [Remainder] string message)
+    [Command("dme")]
+    [Summary("Sends a direct message to a specified user. With embed")]
+    [RequireSudo]
+    public async Task DMEUserAsync(SocketUser user, [Remainder] string message)
     {
         var attachments = Context.Message.Attachments;
-        var hasAttachments = attachments.Count != 0;
+        var hasAttachments = attachments.Count > 0;
 
         var embed = new EmbedBuilder
         {
-            Title = "Private Message from the Bot Owner",
+            Title = "Private Message from Eternal Pokémon Paradise",
             Description = message,
-            Color = (DiscordColor?)Color.Gold,
+            Color = (DiscordColor?)Color.Aqua,
             Timestamp = DateTimeOffset.Now,
-            ThumbnailUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/pikamail.png"
+            ThumbnailUrl = "https://i.imgur.com/swtwkxq.jpg"
         };
 
         try
@@ -440,13 +440,77 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
             }
 
             var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
-            await Context.Message.DeleteAsync();
+
+            // Delay to allow users to see the confirmation message
             await Task.Delay(TimeSpan.FromSeconds(10));
-            await confirmationMessage.DeleteAsync();
+            if (confirmationMessage != null)
+                await confirmationMessage.DeleteAsync();
         }
         catch (Exception ex)
         {
             await ReplyAsync($"Failed to send message to {user.Username}. Error: {ex.Message}");
+        }
+
+        // Deleting the original command message after the process
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            await Context.Message.DeleteAsync();
+        }
+        catch
+        {
+            // Do nothing if the message has already been deleted or fails to delete
+        }
+    }
+
+    [Command("dm")]
+    [Summary("Sends a direct message to a specified user. Without embed")]
+    [RequireSudo]
+    public async Task DMUserAsync(SocketUser user, [Remainder] string message)
+    {
+        var attachments = Context.Message.Attachments;
+        var hasAttachments = attachments.Count > 0;
+
+        try
+        {
+            var dmChannel = await user.CreateDMChannelAsync();
+
+            if (hasAttachments)
+            {
+                foreach (var attachment in attachments)
+                {
+                    using var httpClient = new HttpClient();
+                    var stream = await httpClient.GetStreamAsync(attachment.Url);
+                    var file = new FileAttachment(stream, attachment.Filename);
+                    await dmChannel.SendFileAsync(file, text: message);
+                }
+            }
+            else
+            {
+                await dmChannel.SendMessageAsync(message);
+            }
+
+            var confirmationMessage = await ReplyAsync($"Message successfully sent to {user.Username}.");
+
+            // Delay to allow users to see the confirmation message
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            if (confirmationMessage != null)
+                await confirmationMessage.DeleteAsync();
+        }
+        catch (Exception ex)
+        {
+            await ReplyAsync($"Failed to send message to {user.Username}. Error: {ex.Message}");
+        }
+
+        // Deleting the original command message after the process
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            await Context.Message.DeleteAsync();
+        }
+        catch
+        {
+            // Do nothing if the message has already been deleted or fails to delete
         }
     }
 
@@ -497,10 +561,9 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
         else
         {
             await messageChannel.SendMessageAsync(actualMessage);
+            await Context.Message.DeleteAsync();
+            await Task.Delay(TimeSpan.FromSeconds(10));
         }
-
-        // Send confirmation message to the user
-        await ReplyAsync($"Message successfully posted in {channelMention}.");
     }
 
     private RemoteControlAccess GetReference(IUser channel) => new()
