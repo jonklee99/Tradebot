@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using Discord.Net;
 using Discord.WebSocket;
+using Newtonsoft.Json;
 using PKHeX.Core;
 using SysBot.Base;
 using SysBot.Pokemon.Helpers;
@@ -1634,6 +1635,106 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
     }
 
+    [Command("tradeprofile")]
+    [Alias("tp")]
+    [Summary("Displays the user's trade profile based on their stored trade code information.")]
+    public async Task ProfileCommand()
+    {
+        var userMessage = Context.Message;
+
+        var userId = Context.User.Id.ToString();
+
+        // Path to the tradecodes.json file
+        const string TradeCodesFile = "tradecodes.json";
+
+        // Check if the file exists
+        if (!File.Exists(TradeCodesFile))
+        {
+            await Context.Channel.SendMessageAsync("The tradecodes file does not exist.").ConfigureAwait(false);
+            await DeleteCommandMessage(userMessage);
+            return;
+        }
+
+        // Read and parse the JSON file
+        string jsonData = await File.ReadAllTextAsync(TradeCodesFile).ConfigureAwait(false);
+        var tradeData = JsonConvert.DeserializeObject<Dictionary<string, TradeCodeInfo>>(jsonData);
+
+        if (tradeData == null || !tradeData.ContainsKey(userId))
+        {
+            await Context.Channel.SendMessageAsync("No trade profile found for you in the database.").ConfigureAwait(false);
+            await DeleteCommandMessage(userMessage);
+            return;
+        }
+
+        // Get user information
+        var userInfo = tradeData[userId];
+
+        // Format the trade code
+        string formattedTradeCode = $"{userInfo.Code / 10000:D4}-{userInfo.Code % 10000:D4}";
+
+        // Custom image URL for the thumbnail
+        const string CustomThumbnailUrl = "https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/Trainer_Info.png";
+
+        // Validate fields
+        string ot = string.IsNullOrWhiteSpace(userInfo.OT) ? "Unknown" : userInfo.OT;
+        string tid = userInfo.TID.ToString();
+        string sid = userInfo.SID.ToString();
+        string tradeCount = userInfo.TradeCount.ToString();
+
+        // Create the embed with a custom thumbnail
+        var embed = new EmbedBuilder()
+            .WithTitle($"{Context.User.Username}'s Trade Profile")
+            .WithColor(Color.Blue)
+            .WithThumbnailUrl(CustomThumbnailUrl)
+            .AddField("Trade Code", formattedTradeCode, true)
+            .AddField("OT", ot, true)
+            .AddField("TID", tid, true)
+            .AddField("SID", sid, true)
+            .AddField("Trade Count", tradeCount, true)
+            .WithFooter("Use the bot responsibly!")
+            .Build();
+
+        // Try sending the embed to the user's DMs
+        try
+        {
+            var dmChannel = await Context.User.CreateDMChannelAsync();
+            await dmChannel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+            await Context.Channel.SendMessageAsync($"{Context.User.Mention}, I've sent your trade profile to your DMs.").ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Catch any general exceptions (e.g., if the user has DMs disabled)
+            await Context.Channel.SendMessageAsync($"{Context.User.Mention}, I couldn't send you a DM. Please check your privacy settings.").ConfigureAwait(false);
+            Console.WriteLine($"Failed to send DM to user {Context.User.Id}: {ex.Message}");
+        }
+
+        // Delete the user's command message
+        await DeleteCommandMessage(userMessage);
+    }
+
+    // Helper method to delete a message
+    private async Task DeleteCommandMessage(IUserMessage message)
+    {
+        try
+        {
+            await message.DeleteAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to delete message: {ex.Message}");
+        }
+    }
+
+    // Helper class to deserialize trade data
+    private class TradeCodeInfo
+    {
+        public int Code { get; set; }
+        public string OT { get; set; }
+        public int SID { get; set; }
+        public int TID { get; set; }
+        public int TradeCount { get; set; }
+    }
+
     [Command("medals")]
     [Alias("ml")]
     [Summary("Shows your current trade count and medal status")]
@@ -1651,7 +1752,25 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         int currentMilestone = GetCurrentMilestone(totalTrades);
 
         var embed = CreateMedalsEmbed(Context.User, currentMilestone, totalTrades);
-        await Context.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+
+        try
+        {
+            // Send the embed to the user's DMs
+            var dmChannel = await Context.User.CreateDMChannelAsync();
+            await dmChannel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+
+            // Notify in the channel that the message has been sent
+            var confirmationMessage = await ReplyAsync($"{Context.User.Mention}, your medals information has been sent to your DMs.").ConfigureAwait(false);
+
+            // Delete the confirmation message after 5 seconds
+            await Task.Delay(5000);
+            await confirmationMessage.DeleteAsync().ConfigureAwait(false);
+        }
+        catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
+        {
+            // This exception is thrown if the user has DMs disabled
+            await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM. Please check your privacy settings.").ConfigureAwait(false);
+        }
     }
 
     private static int GetCurrentMilestone(int totalTrades)
