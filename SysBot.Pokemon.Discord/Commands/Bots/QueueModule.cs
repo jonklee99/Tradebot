@@ -3,6 +3,7 @@ using Discord.Commands;
 using PKHeX.Core;
 using SysBot.Base;
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -200,13 +201,46 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("changeTradeCode")]
     [Alias("ctc")]
-    [Summary("Changes the user's trade code if trade code storage is turned on.")]
-    public async Task ChangeTradeCodeAsync([Summary("New 8-digit trade code")] string newCode)
+    [Summary("Changes the user's trade code or another user's trade code if an ID or mention is provided.")]
+    [RequireSudo]
+    public async Task ChangeTradeCodeAsync(
+    [Summary("Discord ID or mention of the user (optional)")] string targetUserIdOrMention = null,
+    [Summary("New 8-digit trade code")] string newCode = null)
     {
         // Delete user's message immediately to protect the trade code
         await Context.Message.DeleteAsync().ConfigureAwait(false);
 
-        var userID = Context.User.Id;
+        if (string.IsNullOrWhiteSpace(newCode))
+        {
+            await SendTemporaryMessageAsync("Please provide a valid 8-digit trade code.").ConfigureAwait(false);
+            return;
+        }
+
+        ulong userID;
+        if (string.IsNullOrWhiteSpace(targetUserIdOrMention))
+        {
+            // Default to the command issuer's ID if no target is provided
+            userID = Context.User.Id;
+        }
+        else
+        {
+            // Check if the input is a mention or ID
+            var mentionedUser = Context.Message.MentionedUsers.FirstOrDefault();
+            if (mentionedUser != null)
+            {
+                userID = mentionedUser.Id;
+            }
+            else if (ulong.TryParse(targetUserIdOrMention, out ulong parsedId))
+            {
+                userID = parsedId;
+            }
+            else
+            {
+                await SendTemporaryMessageAsync("Invalid user ID or mention provided.").ConfigureAwait(false);
+                return;
+            }
+        }
+
         var tradeCodeStorage = new TradeCodeStorage();
 
         if (!ValidateTradeCode(newCode, out string errorMessage))
@@ -220,19 +254,53 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             int code = int.Parse(newCode);
             if (tradeCodeStorage.UpdateTradeCode(userID, code))
             {
-                await SendTemporaryMessageAsync("Your trade code has been successfully updated.").ConfigureAwait(false);
+                // Notify the target user via DM if the user is not the command issuer
+                if (userID != Context.User.Id)
+                {
+                    var targetUser = Context.Client.GetUser(userID);
+                    if (targetUser != null)
+                    {
+                        try
+                        {
+                            var embed = new EmbedBuilder()
+                                .WithTitle("Your Trade Code Has Been Updated")
+                                .WithDescription($"Your new trade code is:\n# {newCode.Insert(4, " ")}") // Inserts a space for formatting (e.g., 1234 5678)
+                                .WithColor(new Color(0, 255, 255))
+                                .WithFooter($"Changed by: Eternal Pokemon Paradise!")
+                                .WithThumbnailUrl("https://raw.githubusercontent.com/Joseph11024/Bot-Images/main/Empire/UpdateTradeCode.png")
+                                .Build();
+
+                            await targetUser.SendMessageAsync(embed: embed).ConfigureAwait(false);
+                            await SendTemporaryMessageAsync($"Successfully updated the trade code for {targetUser.Mention} and sent them a notification.").ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            await SendTemporaryMessageAsync($"Successfully updated the trade code for user with ID: {userID}, but I couldn't send them a notification.").ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        await SendTemporaryMessageAsync($"Successfully updated the trade code for user with ID: {userID}, but the user could not be found.").ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    await SendTemporaryMessageAsync("Your trade code has been successfully updated.").ConfigureAwait(false);
+                }
             }
             else
             {
-                await SendTemporaryMessageAsync("You don't have a trade code set. Use the trade command to generate one first.").ConfigureAwait(false);
+                await SendTemporaryMessageAsync("The specified user does not have a trade code set. They need to generate one first.").ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             LogUtil.LogError($"Error changing trade code for user {userID}: {ex.Message}", nameof(QueueModule<T>));
-            await SendTemporaryMessageAsync("An error occurred while changing your trade code. Please try again later.").ConfigureAwait(false);
+            await SendTemporaryMessageAsync("An error occurred while changing the trade code. Please try again later.").ConfigureAwait(false);
         }
     }
+
+
 
     private async Task SendTemporaryMessageAsync(string message)
     {
@@ -271,12 +339,13 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     private static bool IsEasilyGuessableCode(string code)
     {
-        string[] easyPatterns = [
-                @"^(\d)\1{7}$",           // All same digits (e.g., 11111111)
-                @"^12345678$",            // Ascending sequence
-                @"^87654321$",            // Descending sequence
-                @"^(?:01234567|12345678|23456789)$" // Other common sequences
-            ];
+        string[] easyPatterns = new[]
+        {
+        @"^(\d)\1{7}$",           // All same digits (e.g., 11111111)
+        @"^12345678$",            // Ascending sequence
+        @"^87654321$",            // Descending sequence
+        @"^(?:01234567|12345678|23456789)$" // Other common sequences
+    };
 
         foreach (var pattern in easyPatterns)
         {
