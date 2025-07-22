@@ -23,7 +23,8 @@ public static class StringsUtil
 
     private static readonly char[] Blacklist = ['.', '\\', '/', ',', '*', ';', '．', '・', '。'];
     private static readonly string[] TLD = ["tv", "gg", "yt"];
-    private static readonly string[] TLD2 = ["com", "org", "net"];
+    private static readonly string[] TLD2 = ["com", "org", "net", "fun"];
+    private static readonly string[] NameBlacklist = ["trump", "biden"];
 
     /// <summary>
     /// Checks the input <see cref="text"/> to see if it is selfish spam.

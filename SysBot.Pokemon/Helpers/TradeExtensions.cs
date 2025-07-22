@@ -349,10 +349,28 @@ public abstract class TradeExtensions<T> where T : PKM, new()
     public static bool HasAdName(T pk, out string ad)
     {
         // List of common TLDs to match
-        const string domainPattern = @"(?<=\w)\.(com|org|net|gg|xyz|io|tv|co|me|us|uk|ca|de|fr|jp|au|eu|ch|it|nl|ru|br|in)\b";
+        const string domainPattern = @"(?<=\w)\.(com|org|net|gg|xyz|io|tv|co|me|us|uk|ca|de|fr|jp|au|eu|ch|it|nl|ru|br|in|fun)\b";
 
-        bool ot = Regex.IsMatch(pk.OriginalTrainerName, domainPattern, RegexOptions.IgnoreCase);
-        bool nick = Regex.IsMatch(pk.Nickname, domainPattern, RegexOptions.IgnoreCase);
+        // List of banned names
+        string[] NameBlacklist = { "trump", "biden" };
+
+        // Function to sanitize input: remove spaces and special characters, convert to lowercase
+        static string Sanitize(string input)
+        {
+            return new string(input.Where(char.IsLetterOrDigit).ToArray()).ToLower();
+        }
+
+        // Sanitize Nickname and OT before checking
+        string sanitizedOT = Sanitize(pk.OriginalTrainerName);
+        string sanitizedNick = Sanitize(pk.Nickname);
+
+        // Check for domains and banned names
+        bool ot = Regex.IsMatch(pk.OriginalTrainerName, domainPattern, RegexOptions.IgnoreCase) ||
+                  NameBlacklist.Any(name => sanitizedOT.Contains(name));
+
+        bool nick = Regex.IsMatch(pk.Nickname, domainPattern, RegexOptions.IgnoreCase) ||
+                    NameBlacklist.Any(name => sanitizedNick.Contains(name));
+
         ad = ot ? pk.OriginalTrainerName : nick ? pk.Nickname : "";
         return ot || nick;
     }
