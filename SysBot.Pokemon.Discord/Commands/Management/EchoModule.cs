@@ -155,7 +155,7 @@ namespace SysBot.Pokemon.Discord
         [Command("Announce", RunMode = RunMode.Async)]
         [Alias("announce")]
         [Summary("Sends an announcement to all EchoChannels added by the aec command.")]
-        [RequireOwner]
+        [RequireSudo]
         public async Task AnnounceAsync([Remainder] string announcement)
         {
             var unixTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -172,7 +172,7 @@ namespace SysBot.Pokemon.Discord
                 Color = embedColor,
                 Description = embedDescription
             }
-            .WithTitle("Important Announcement!")
+            .WithTitle("Important Announcement from Eternal Pokémon Paradise!")
             .WithThumbnailUrl(thumbnailUrl)
             .Build();
 
