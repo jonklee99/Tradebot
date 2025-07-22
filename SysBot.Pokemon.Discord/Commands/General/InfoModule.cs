@@ -18,7 +18,7 @@ public class InfoModule : ModuleBase<SocketCommandContext>
 {
     private const string detail = "I am an open-source Pokemon Trading Discord bot developed by hexbyt3.";
 
-    private const string repo = "https://github.com/hexbyt3/PokeBot";
+    private const string repo = "https://github.com/jonklee99/Tradebot";
 
     [Command("info")]
     [Alias("about", "whoami", "owner")]
@@ -33,7 +33,7 @@ public class InfoModule : ModuleBase<SocketCommandContext>
         };
 
         builder.AddField("Info",
-            $"- [Source Code]({repo})\n" +
+            $"- [Source Code]({repo})\n- [Join Our Discord!](http://freemons.net/)\n" +
             $"- {Format.Bold("Owner")}: {app.Owner} ({app.Owner.Id})\n" +
             $"- {Format.Bold("Library")}: Discord.Net ({DiscordConfig.Version})\n" +
             $"- {Format.Bold("Uptime")}: {GetUptime()}\n" +
