@@ -28,6 +28,7 @@ namespace SysBot.Pokemon.Discord
             var summaries = bots.Select(GetDetailedSummary);
             var lines = string.Join(Environment.NewLine, summaries);
             await ReplyAsync(Format.Code(lines)).ConfigureAwait(false);
+            await Context.Message.DeleteAsync();
         }
 
         private static string GetBotIPFromJsonConfig()
@@ -74,6 +75,7 @@ namespace SysBot.Pokemon.Discord
 
             bot.Start();
             await ReplyAsync("Bot has been started.").ConfigureAwait(false);
+            await Context.Message.DeleteAsync();
         }
 
         [Command("botStop")]
@@ -93,6 +95,7 @@ namespace SysBot.Pokemon.Discord
 
             bot.Stop();
             await ReplyAsync("Bot has been stopped.").ConfigureAwait(false);
+            await Context.Message.DeleteAsync();
         }
 
         [Command("botIdle")]

@@ -53,6 +53,7 @@ public class InfoModule : ModuleBase<SocketCommandContext>
         );
 
         await ReplyAsync("Here's a bit about me!", embed: builder.Build()).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     private static string GetHeapSize() => Math.Round(GC.GetTotalMemory(true) / (1024.0 * 1024.0), 2).ToString(CultureInfo.CurrentCulture);

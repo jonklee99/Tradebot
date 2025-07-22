@@ -214,6 +214,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
 
         await ReplyAsync($"Leaving {guild}.").ConfigureAwait(false);
         await guild.LeaveAsync().ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("leaveall")]
@@ -401,6 +402,7 @@ public class OwnerModule<T> : SudoModule<T> where T : PKM, new()
     {
         await Context.Channel.EchoAndReply("Shutting down... goodbye! **Bot services are going offline.**").ConfigureAwait(false);
         Environment.Exit(0);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("dme")]

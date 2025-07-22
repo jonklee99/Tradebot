@@ -10,5 +10,6 @@ public class PingModule : ModuleBase<SocketCommandContext>
     public async Task PingAsync()
     {
         await ReplyAsync("Pong!").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 }

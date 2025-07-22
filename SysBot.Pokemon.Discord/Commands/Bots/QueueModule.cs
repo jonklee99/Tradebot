@@ -32,6 +32,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     {
         Info.ClearAllQueues();
         await ReplyAsync("Cleared all in the queue.").ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("queueClear")]
@@ -51,6 +52,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     {
         string msg = ClearTrade(id);
         await ReplyAsync(msg).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("queueClearUser")]
@@ -63,6 +65,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             string msg = ClearTrade(user.Id);
             await ReplyAsync(msg).ConfigureAwait(false);
+            await Context.Message.DeleteAsync();
         }
     }
 
@@ -90,6 +93,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var userID = Context.User.Id;
         string msg = QueueModule<T>.DeleteTradeCode(userID);
         await ReplyAsync(msg).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 
     [Command("queueStatus")]
@@ -126,6 +130,7 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await ReplyAsync("Queue list is empty.").ConfigureAwait(false);
         else
             await Context.User.SendMessageAsync(msg).ConfigureAwait(false);
+            await Context.Message.DeleteAsync();
     }
 
     [Command("queueToggle")]
