@@ -92,8 +92,8 @@ public class DiscordSettings
     [Category(Channels), Description("Channels with these IDs are the only channels where the bot acknowledges commands.")]
     public RemoteControlAccessList ChannelWhitelist { get; set; } = new();
 
-    [Category(Startup), Description("Bot command prefix.")]
-    public string CommandPrefix { get; set; } = "$";
+    [Category(Startup), Description("List of bot command prefixes")]
+    public System.Collections.Generic.List<string> CommandPrefix { get; set; } = new System.Collections.Generic.List<string> { "$", "%" };
 
     [Category(Operation), Description("Bot can reply with a ShowdownSet in Any channel the bot can see, instead of only channels the bot has been whitelisted to run in. Only make this true if you want the bot to serve more utility in non-bot channels.")]
     public bool ConvertPKMReplyAnyChannel { get; set; } = false;
