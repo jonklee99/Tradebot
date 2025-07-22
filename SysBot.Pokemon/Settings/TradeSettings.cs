@@ -249,6 +249,9 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         [Category(EmbedSettings), Description("Will show Level in trade embed (Discord only)."), DisplayName("Show Level")]
         public bool ShowLevel { get; set; } = true;
 
+        [Category(EmbedSettings), Description("Will show Home Tracker in trade embed (Discord only)."), DisplayName("Show Tracker")]
+        public bool ShowTracker { get; set; } = true;
+
         [Category(EmbedSettings), Description("Will show MetDate in trade embed (Discord only)."), DisplayName("Show Met Date")]
         public bool ShowMetDate { get; set; } = true;
 
