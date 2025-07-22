@@ -266,6 +266,12 @@ public class TradeSettings : IBotStateSettings, ICountSettings
 
         [Category(EmbedSettings), Description("Will show EVs in trade embed (Discord only)."), DisplayName("Show EVs")]
         public bool ShowEVs { get; set; } = true;
+
+        [Category(EmbedSettings), Description("Will show GVs in trade embed (Discord only)."), DisplayName("Show GVs For PLA")]
+        public bool ShowGVs { get; set; } = true;
+
+        [Category(EmbedSettings), Description("Will show AVs in trade embed (Discord only)."), DisplayName("Show AVs For LGPE")]
+        public bool ShowAVs { get; set; } = true;
     }
 
     [Category(RequestFolders), TypeConverter(typeof(CategoryConverter<RequestFolderSettingsCategory>))]
