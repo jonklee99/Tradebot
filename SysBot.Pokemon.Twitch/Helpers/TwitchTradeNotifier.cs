@@ -3,13 +3,17 @@ using SysBot.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using TwitchLib.Client;
 
 namespace SysBot.Pokemon.Twitch
 {
     public class TwitchTradeNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new()
     {
-        public TwitchTradeNotifier(T data, PokeTradeTrainerInfo info, int code, string username, TwitchClient client, string channel, TwitchSettings settings)
+        private int BatchTradeNumber { get; set; } = 1;
+        private int TotalBatchTrades { get; set; } = 1;
+
+        public TwitchTradeNotifier(T data, PokeTradeTrainerInfo info, int code, string username, TwitchClient client, string channel, TwitchSettings settings, int batchTradeNumber = 1, int totalBatchTrades = 1)
         {
             Data = data;
             Info = info;
@@ -18,6 +22,8 @@ namespace SysBot.Pokemon.Twitch
             Client = client;
             Channel = channel;
             Settings = settings;
+            BatchTradeNumber = batchTradeNumber;
+            TotalBatchTrades = totalBatchTrades;
 
             LogUtil.LogText($"Created trade details for {Username} - {Code}");
         }
@@ -30,7 +36,7 @@ namespace SysBot.Pokemon.Twitch
 
         private int Code { get; }
 
-        private T Data { get; }
+        private T Data { get; set; }
 
         private PokeTradeTrainerInfo Info { get; }
 
@@ -38,9 +44,21 @@ namespace SysBot.Pokemon.Twitch
 
         private string Username { get; }
 
+        public Task SendInitialQueueUpdate()
+        {
+            return Task.CompletedTask;
+        }
+
         // Dummy methods because not available on Twitch.
         public void SendEtumrepEmbed(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, IReadOnlyList<PA8> pkms)
         { }
+
+        public void UpdateBatchProgress(int currentBatchNumber, T currentPokemon, int uniqueTradeID)
+        {
+            BatchTradeNumber = currentBatchNumber;
+            Data = currentPokemon;
+            // uniqueTradeID is not used in Twitch notifier
+        }
 
         public void SendIncompleteEtumrepEmbed(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, string msg, IReadOnlyList<PA8> pkms)
         { }
@@ -79,7 +97,24 @@ namespace SysBot.Pokemon.Twitch
         {
             OnFinish?.Invoke(routine);
             var tradedToUser = Data.Species;
-            var message = $"@{info.Trainer.TrainerName}: " + (tradedToUser != 0 ? $"Trade finished. Enjoy your {(Species)tradedToUser}!" : "Trade finished!");
+
+            string message;
+            if (TotalBatchTrades > 1)
+            {
+                if (BatchTradeNumber == TotalBatchTrades)
+                {
+                    message = $"@{info.Trainer.TrainerName}: All {TotalBatchTrades} trades completed! Thank you for trading!";
+                }
+                else
+                {
+                    message = $"@{info.Trainer.TrainerName}: Trade {BatchTradeNumber}/{TotalBatchTrades} completed!";
+                }
+            }
+            else
+            {
+                message = $"@{info.Trainer.TrainerName}: " + (tradedToUser != 0 ? $"Trade finished. Enjoy your {(Species)tradedToUser}!" : "Trade finished!");
+            }
+
             LogUtil.LogText(message);
             SendMessage(message, Settings.TradeFinishDestination);
         }

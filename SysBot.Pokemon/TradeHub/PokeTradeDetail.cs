@@ -57,6 +57,8 @@ namespace SysBot.Pokemon
 
         public readonly int UniqueTradeID;
 
+        public string? MetDate { get; set; }
+
         public bool IsCanceled { get; set; }
 
         public bool IsMysteryEgg { get; }
@@ -64,6 +66,7 @@ namespace SysBot.Pokemon
         public bool IgnoreAutoOT { get; }
 
         public bool SetEdited { get; set; }
+        public List<TPoke>? BatchTrades { get; set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 

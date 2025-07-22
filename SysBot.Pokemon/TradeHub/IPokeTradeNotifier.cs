@@ -1,5 +1,6 @@
 using PKHeX.Core;
 using System;
+using System.Threading.Tasks;
 
 namespace SysBot.Pokemon;
 
@@ -7,6 +8,12 @@ public interface IPokeTradeNotifier<T> where T : PKM, new()
 {
     /// <summary> Notifies when a trade bot is initializing at the start. </summary>
     Action<PokeRoutineExecutor<T>>? OnFinish { set; }
+
+    /// <summary> Sends the initial queue position update to the user. </summary>
+    Task SendInitialQueueUpdate();
+
+    /// <summary> Updates the batch progress for batch trades. </summary>
+    void UpdateBatchProgress(int currentBatchNumber, T currentPokemon, int uniqueTradeID);
 
     /// <summary> Sends a notification when called with parameters. </summary>
     void SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, string message);

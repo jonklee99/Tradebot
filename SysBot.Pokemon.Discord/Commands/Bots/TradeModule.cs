@@ -13,6 +13,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using static SysBot.Pokemon.TradeSettings.TradeSettingsCategory;
 
@@ -762,28 +763,31 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("batchTrade")]
     [Alias("bt")]
-    [Summary("Makes the bot trade multiple Pokémon from the provided list, up to a maximum of 3 trades.")]
+    [Summary("Makes the bot trade multiple Pokémon from the provided list, up to a maximum of 4 trades.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
     public async Task BatchTradeAsync([Summary("List of Showdown Sets separated by '---'")][Remainder] string content)
     {
-        // First, check if batch trades are allowed
-        if (!SysCord<T>.Runner.Config.Trade.TradeConfiguration.AllowBatchTrades)
-        {
-            _ = ReplyAndDeleteAsync("Batch trades are currently disabled.", 2);
-            return;
-        }
-
         // Check if the user is already in the queue
         var userID = Context.User.Id;
         if (Info.IsUserInQueue(userID))
         {
-            _ = ReplyAndDeleteAsync("You already have an existing trade in the queue. Please wait until it is processed.", 2);
-            return;
+            var existingTrades = Info.GetIsUserQueued(x => x.UserID == userID);
+            foreach (var trade in existingTrades)
+            {
+                trade.Trade.IsProcessing = false;
+            }
+
+            var clearResult = Info.ClearTrade(userID);
+            if (clearResult == QueueResultRemove.CurrentlyProcessing || clearResult == QueueResultRemove.NotInQueue)
+            {
+                _ = ReplyAndDeleteAsync("You already have an existing trade in the queue that cannot be cleared. Please wait until it is processed.", 2);
+                return;
+            }
         }
 
         content = ReusableActions.StripCodeBlock(content);
-        var trades = TradeModule<T>.ParseBatchTradeContent(content);
-        var maxTradesAllowed = SysCord<T>.Runner.Config.Trade.TradeConfiguration.MaxPkmsPerTrade;
+        var trades = ParseBatchTradeContent(content);
+        const int maxTradesAllowed = 4;
 
         // Check if batch mode is allowed and if the number of trades exceeds the limit
         if (maxTradesAllowed < 1 || trades.Count > maxTradesAllowed)
@@ -795,23 +799,82 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
         var batchTradeCode = Info.GetRandomTradeCode(userID);
 
-        // Execute the trades in order of request, with delay
+        // Process all trades and collect results
+        var batchPokemonList = new List<T>();
+        var errors = new List<BatchTradeError>();
+
         for (int i = 0; i < trades.Count; i++)
         {
             var trade = trades[i];
-            int batchTradeNumber = i + 1;
+            var (pk, error, set, legalizationHint) = await ProcessSingleTradeForBatch(trade);
 
-            // Execute
-            await ProcessSingleTradeAsync(trade, batchTradeCode, true, batchTradeNumber, trades.Count);
-
-            // Log to confirm trade order and pause
-            Console.WriteLine($"Completed batch trade #{batchTradeNumber}: {trade}");
-
-            // Add a delay of 3/4 of a second before processing the next batch trade number
-            if (i < trades.Count - 1)
+            if (pk != null)
             {
-                await Task.Delay(750); // 750 milliseconds = 0.75 seconds (Delay to process order)
+                batchPokemonList.Add(pk);
             }
+            else
+            {
+                var speciesName = set != null && set.Species > 0
+                    ? GameInfo.Strings.Species[set.Species]
+                    : "Unknown";
+
+                errors.Add(new BatchTradeError
+                {
+                    TradeNumber = i + 1,
+                    SpeciesName = speciesName,
+                    ErrorMessage = error ?? "Unknown error",
+                    LegalizationHint = legalizationHint,
+                    ShowdownSet = set != null ? string.Join("\n", set.GetSetLines()) : trade
+                });
+            }
+        }
+
+        // If any trades failed, reject the entire batch with detailed error information
+        if (errors.Count > 0)
+        {
+            var errorMessage = BuildDetailedBatchErrorMessage(errors, trades.Count);
+
+            // Create an embed for better formatting in Discord
+            var embed = new EmbedBuilder()
+                .WithTitle("❌ Batch Trade Validation Failed")
+                .WithColor(Color.Red)
+                .WithDescription($"{errors.Count} out of {trades.Count} Pokémon could not be processed.")
+                .WithFooter("Please fix the invalid sets and try again.");
+
+            // Add each error as a field in the embed
+            foreach (var error in errors)
+            {
+                var fieldValue = $"**Error:** {error.ErrorMessage}";
+                if (!string.IsNullOrEmpty(error.LegalizationHint))
+                {
+                    fieldValue += $"\n💡 **Hint:** {error.LegalizationHint}";
+                }
+
+                // Add first few lines of the showdown set for context
+                if (!string.IsNullOrEmpty(error.ShowdownSet))
+                {
+                    var lines = error.ShowdownSet.Split('\n').Take(2);
+                    fieldValue += $"\n**Set:** {string.Join(" | ", lines)}...";
+                }
+
+                // Discord embed fields have a 1024 character limit
+                if (fieldValue.Length > 1024)
+                {
+                    fieldValue = fieldValue.Substring(0, 1021) + "...";
+                }
+
+                embed.AddField($"Trade #{error.TradeNumber} - {error.SpeciesName}", fieldValue);
+            }
+
+            var replyMessage = await ReplyAsync(embed: embed.Build());
+            _ = DeleteMessagesAfterDelayAsync(replyMessage, Context.Message, 20);
+            return;
+        }
+
+        // All trades are valid, proceed to queue
+        if (batchPokemonList.Count > 0)
+        {
+            await ProcessBatchContainer(batchPokemonList, batchTradeCode, trades.Count);
         }
 
         // Final cleanup
@@ -821,266 +884,157 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
     }
 
-    private static List<string> ParseBatchTradeContent(string content)
-    {
-        var delimiters = new[] { "---", "—-", "\n\n" }; // Includes both three hyphens and an em dash followed by a hyphen for phone users, and just a normal space in between.
-        return content.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(trade => trade.Trim())
-                            .ToList();
-    }
-
-    [Command("batchtradezip")]
-    [Alias("btz")]
-    [Summary("Makes the bot trade multiple Pokémon from the provided .zip file, up to a maximum of 6 trades.")]
-    [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public async Task BatchTradeZipAsync()
-    {
-        // First, check if batch trades are allowed
-        if (!SysCord<T>.Runner.Config.Trade.TradeConfiguration.AllowBatchTrades)
-        {
-            _ = ReplyAndDeleteAsync("Batch trades are currently disabled.", 2);
-            return;
-        }
-
-        // Check if the user is already in the queue
-        var userID = Context.User.Id;
-        if (Info.IsUserInQueue(userID))
-        {
-            _ = ReplyAndDeleteAsync("You already have an existing trade in the queue. Please wait until it is processed.", 2);
-            return;
-        }
-
-        var attachment = Context.Message.Attachments.FirstOrDefault();
-        if (attachment == default)
-        {
-            _ = ReplyAndDeleteAsync("No attachment provided!", 2);
-            return;
-        }
-
-        if (!attachment.Filename.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-        {
-            _ = ReplyAndDeleteAsync("Invalid file format. Please provide a .zip file.", 2);
-            return;
-        }
-
-        var zipBytes = await new HttpClient().GetByteArrayAsync(attachment.Url);
-        await using var zipStream = new MemoryStream(zipBytes);
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-        var entries = archive.Entries.ToList();
-
-        const int maxTradesAllowed = 6; // for full team in the zip created
-
-        // Check if batch mode is allowed and if the number of trades exceeds the limit
-        if (maxTradesAllowed < 1 || entries.Count > maxTradesAllowed)
-        {
-            _ = ReplyAndDeleteAsync($"You can only process up to {maxTradesAllowed} trades at a time. Please reduce the number of Pokémon in your .zip file.", 5, Context.Message);
-            return;
-        }
-
-        var batchTradeCode = Info.GetRandomTradeCode(userID);
-        int batchTradeNumber = 1;
-
-        foreach (var entry in entries)
-        {
-            await using var entryStream = entry.Open();
-            var pkBytes = await TradeModule<T>.ReadAllBytesAsync(entryStream).ConfigureAwait(false);
-            var pk = EntityFormat.GetFromBytes(pkBytes);
-
-            if (pk is T)
-            {
-                await ProcessSingleTradeAsync((T)pk, batchTradeCode, true, batchTradeNumber, entries.Count);
-                batchTradeNumber++;
-            }
-        }
-        if (Context.Message is IUserMessage userMessage)
-        {
-            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
-        }
-    }
-
-    private static async Task<byte[]> ReadAllBytesAsync(Stream stream)
-    {
-        await using var memoryStream = new MemoryStream();
-        await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-        return memoryStream.ToArray();
-    }
-
-    private async Task ProcessSingleTradeAsync(T pk, int batchTradeCode, bool isBatchTrade, int batchTradeNumber, int totalBatchTrades)
-    {
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var la = new LegalityAnalysis(pk);
-                var spec = GameInfo.Strings.Species[pk.Species];
-
-                if (!la.Valid)
-                {
-                    await ReplyAsync($"The {spec} in the provided file is not legal.").ConfigureAwait(false);
-                    return;
-                }
-
-                pk.ResetPartyStats();
-
-                var userID = Context.User.Id;
-                var code = Info.GetRandomTradeCode(userID);
-                var lgcode = Info.GetRandomLGTradeCode();
-
-                // Ad Name Check
-                if (Info.Hub.Config.Trade.TradeConfiguration.EnableSpamCheck)
-                {
-                    if (TradeExtensions<T>.HasAdName(pk, out string ad))
-                    {
-                        await ReplyAndDeleteAsync("Detected Adname in the Pokémon's name or trainer name, which is not allowed.", 5);
-                        return;
-                    }
-                }
-
-                // Add the trade to the queue
-                var sig = Context.User.GetFavor();
-                await AddTradeToQueueAsync(batchTradeCode, Context.User.Username, pk, sig, Context.User, isBatchTrade, batchTradeNumber, totalBatchTrades, lgcode: lgcode, tradeType: PokeTradeType.Batch).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                LogUtil.LogSafe(ex, nameof(TradeModule<T>));
-            }
-        });
-
-        // Return immediately to avoid blocking
-        await Task.CompletedTask;
-    }
-
-    private async Task ProcessSingleTradeAsync(string tradeContent, int batchTradeCode, bool isBatchTrade, int batchTradeNumber, int totalBatchTrades)
+    private static Task<(T? Pokemon, string? Error, ShowdownSet? Set, string? LegalizationHint)> ProcessSingleTradeForBatch(string tradeContent)
     {
         tradeContent = ReusableActions.StripCodeBlock(tradeContent);
         var ignoreAutoOT = tradeContent.Contains("OT:") || tradeContent.Contains("TID:") || tradeContent.Contains("SID:");
+        bool isEgg = TradeExtensions<T>.IsEggCheck(tradeContent);
 
         _ = ShowdownParsing.TryParseAnyLanguage(tradeContent, out ShowdownSet? set);
 
         if (set == null || set.Species == 0)
-        {
-            await ReplyAsync("Unable to parse Showdown set. Could not identify the Pokémon species.");
-            return;
-        }
+            return Task.FromResult<(T?, string?, ShowdownSet?, string?)>((null, "Unable to parse Showdown set. Could not identify the Pokémon species.", set, null));
 
         byte finalLanguage = LanguageHelper.GetFinalLanguage(tradeContent, set, (byte)Info.Hub.Config.Legality.GenerateLanguage, TradeExtensions<T>.DetectShowdownLanguage);
         var template = AutoLegalityWrapper.GetTemplate(set);
 
-        if (set.InvalidLines.Count != 0)
+        var sav = LanguageHelper.GetTrainerInfoWithLanguage<T>((LanguageID)finalLanguage);
+        var pkm = sav.GetLegal(template, out var result);
+        if (pkm == null)
         {
-            var msg = $"Unable to parse Showdown Set:\n{string.Join("\n", set.InvalidLines)}";
-            await ReplyAsync(msg).ConfigureAwait(false);
-            return;
+            var spec = GameInfo.Strings.Species[template.Species];
+            var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
+                         result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
+                         $"I wasn't able to create a {spec} from that set.";
+            return Task.FromResult<(T?, string?, ShowdownSet?, string?)>((null, reason, set, null));
         }
 
-        _ = Task.Run(async () =>
+        var la = new LegalityAnalysis(pkm);
+
+        // Handle eggs similar to regular trade commands
+        if (isEgg && pkm is T eggPk)
         {
-            try
+            bool versionSpecified = tradeContent.Contains(".Version=", StringComparison.OrdinalIgnoreCase);
+
+            if (!versionSpecified)
             {
-                var sav = LanguageHelper.GetTrainerInfoWithLanguage<T>((LanguageID)finalLanguage);
-                var pkm = sav.GetLegal(template, out var result);
-                if (pkm == null)
+                if (eggPk is PB8 pb8)
                 {
-                    var response = await ReplyAsync("Showdown Set took too long to legalize.");
-                    return;
+                    pb8.Version = (GameVersion)GameVersion.BD;
                 }
-
-                var la = new LegalityAnalysis(pkm);
-                var spec = GameInfo.Strings.Species[template.Species];
-
-                if (pkm is not T pk || !la.Valid)
+                else if (eggPk is PK8 pk8)
                 {
-                    var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
-                                 result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
-                                 $"I wasn't able to create a {spec} from that set.";
-
-                    var embedBuilder = new EmbedBuilder()
-                        .WithTitle("Trade Creation Failed.")
-                        .WithColor(Color.Red)
-                        .AddField("Status", $"Failed to create {spec}.")
-                        .AddField("Reason", reason);
-
-                    if (result == "Failed")
-                    {
-                        var legalizationHint = AutoLegalityWrapper.GetLegalizationHint(template, sav, pkm);
-                        if (legalizationHint.Contains("Requested shiny value (ShinyType."))
-                        {
-                            legalizationHint = $"{spec} **cannot** be shiny. Please try again.";
-                        }
-
-                        if (!string.IsNullOrEmpty(legalizationHint))
-                        {
-                            embedBuilder.AddField("Hint", legalizationHint);
-                        }
-                    }
-
-                    string userMention = Context.User.Mention;
-                    string messageContent = $"{userMention}, here's the report for your request:";
-                    var message = await Context.Channel.SendMessageAsync(text: messageContent, embed: embedBuilder.Build()).ConfigureAwait(false);
-                    _ = DeleteMessagesAfterDelayAsync(message, Context.Message, 30);
-                    return;
+                    pk8.Version = (GameVersion)GameVersion.SW;
                 }
-
-                if (pkm is PA8)
-                {
-                    pkm.HeldItem = (int)HeldItem.None;
-                }
-                else if (pkm.HeldItem == 0 && !pkm.IsEgg)
-                {
-                    pkm.HeldItem = (int)SysCord<T>.Runner.Config.Trade.TradeConfiguration.DefaultHeldItem;
-                }
-
-                if (pkm is PB7)
-                {
-                    if (pkm.Species == (int)Species.Mew)
-                    {
-                        if (pkm.IsShiny)
-                        {
-                            await ReplyAsync("Mew can **not** be Shiny in LGPE. PoGo Mew does not transfer and Pokeball Plus Mew is shiny locked.");
-                            return;
-                        }
-                    }
-                }
-
-                if (pkm.WasEgg)
-                    pkm.EggMetDate = pkm.MetDate;
-
-                pk.Language = finalLanguage;
-
-                if (!set.Nickname.Equals(pk.Nickname) && string.IsNullOrEmpty(set.Nickname))
-                {
-                    pk.ClearNickname();
-                }
-
-                pk.ResetPartyStats();
-
-                var userID = Context.User.Id;
-                var code = Info.GetRandomTradeCode(userID);
-                var lgcode = Info.GetRandomLGTradeCode();
-                if (pkm is PB7)
-                {
-                    lgcode = GenerateRandomPictocodes(3);
-                }
-
-                if (Info.Hub.Config.Trade.TradeConfiguration.EnableSpamCheck)
-                {
-                    if (TradeExtensions<T>.HasAdName(pk, out string ad))
-                    {
-                        await ReplyAndDeleteAsync("Detected Adname in the Pokémon's name or trainer name, which is not allowed.", 5);
-                        return;
-                    }
-                }
-
-                var sig = Context.User.GetFavor();
-                await AddTradeToQueueAsync(batchTradeCode, Context.User.Username, pk, sig, Context.User, isBatchTrade, batchTradeNumber, totalBatchTrades, lgcode: lgcode, tradeType: PokeTradeType.Batch, ignoreAutoOT: ignoreAutoOT, setEdited: false).ConfigureAwait(false);
             }
-            catch (Exception ex)
+
+            eggPk.IsNicknamed = false;
+            TradeExtensions<T>.EggTrade(eggPk, template);
+            pkm = eggPk;
+            la = new LegalityAnalysis(pkm);
+        }
+
+        if (pkm is not T pk || !la.Valid)
+        {
+            var spec = GameInfo.Strings.Species[template.Species];
+            var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
+                         result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
+                         $"I wasn't able to create a {spec} from that set.";
+
+            string? legalizationHint = null;
+            if (result == "Failed")
             {
-                LogUtil.LogSafe(ex, nameof(TradeModule<T>));
+                legalizationHint = AutoLegalityWrapper.GetLegalizationHint(template, sav, pkm);
+                if (legalizationHint.Contains("Requested shiny value (ShinyType."))
+                {
+                    legalizationHint = $"{spec} cannot be shiny. Please try again.";
+                }
             }
-        });
 
-        await Task.CompletedTask;
+            return Task.FromResult<(T?, string?, ShowdownSet?, string?)>((null, reason, set, legalizationHint));
+        }
+
+        // Apply standard processing
+        if (pk is PA8)
+            pk.HeldItem = (int)HeldItem.None;
+        else if (pk.HeldItem == 0 && !pk.IsEgg)
+            pk.HeldItem = (int)SysCord<T>.Runner.Config.Trade.TradeConfiguration.DefaultHeldItem;
+
+        if (pk.WasEgg)
+            pk.EggMetDate = pk.MetDate;
+
+        pk.Language = finalLanguage;
+        if (!set.Nickname.Equals(pk.Nickname) && string.IsNullOrEmpty(set.Nickname))
+            pk.ClearNickname();
+
+        pk.ResetPartyStats();
+
+        // Check for spam/ad names
+        if (Info.Hub.Config.Trade.TradeConfiguration.EnableSpamCheck)
+        {
+            if (TradeExtensions<T>.HasAdName(pk, out string ad))
+            {
+                return Task.FromResult<(T?, string?, ShowdownSet?, string?)>((null, "Detected Adname in the Pokémon's name or trainer name, which is not allowed.", set, null));
+            }
+        }
+
+        return Task.FromResult<(T?, string?, ShowdownSet?, string?)>((pk, null, set, null));
+    }
+
+    private static string BuildDetailedBatchErrorMessage(List<BatchTradeError> errors, int totalTrades)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"**Batch Trade Validation Failed**");
+        sb.AppendLine($"❌ {errors.Count} out of {totalTrades} Pokémon could not be processed.\n");
+
+        foreach (var error in errors)
+        {
+            sb.AppendLine($"**Trade #{error.TradeNumber} - {error.SpeciesName}**");
+            sb.AppendLine($"Error: {error.ErrorMessage}");
+
+            if (!string.IsNullOrEmpty(error.LegalizationHint))
+            {
+                sb.AppendLine($"💡 Hint: {error.LegalizationHint}");
+            }
+
+            // Optionally include a preview of the showdown set that failed
+            if (!string.IsNullOrEmpty(error.ShowdownSet))
+            {
+                var lines = error.ShowdownSet.Split('\n').Take(3);
+                sb.AppendLine($"Set Preview: {string.Join(" | ", lines)}...");
+            }
+
+            sb.AppendLine(); // Empty line between errors
+        }
+
+        sb.AppendLine("**Please fix the invalid sets and try again.**");
+        return sb.ToString();
+    }
+
+    private class BatchTradeError
+    {
+        public int TradeNumber { get; set; }
+        public string SpeciesName { get; set; } = "Unknown";
+        public string ErrorMessage { get; set; } = "Unknown error";
+        public string? LegalizationHint { get; set; }
+        public string ShowdownSet { get; set; } = "";
+    }
+
+    private async Task ProcessBatchContainer(List<T> batchPokemonList, int batchTradeCode, int totalTrades)
+    {
+        var userID = Context.User.Id;
+        var code = batchTradeCode;
+        var sig = Context.User.GetFavor();
+        var firstPokemon = batchPokemonList[0];
+
+        // Create a single detail with all batch trades
+        await QueueHelper<T>.AddBatchContainerToQueueAsync(Context, code, Context.User.Username, firstPokemon, batchPokemonList, sig, Context.User, totalTrades).ConfigureAwait(false);
+    }
+
+    private static List<string> ParseBatchTradeContent(string content)
+    {
+        var delimiters = new[] { "---", "—-" }; // Includes both three hyphens and an em dash followed by a hyphen
+        return [.. content.Split(delimiters, StringSplitOptions.RemoveEmptyEntries).Select(trade => trade.Trim())];
     }
 
     [Command("listevents")]
