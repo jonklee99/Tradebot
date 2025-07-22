@@ -211,7 +211,7 @@ public static class QueueHelper<T> where T : PKM, new()
                 .WithAuthor(new EmbedAuthorBuilder()
                     .WithName(embedData.AuthorName)
                     .WithIconUrl(trader.GetAvatarUrl() ?? trader.GetDefaultAvatarUrl())
-                    .WithUrl("https://genpkm.com"));
+                    .WithUrl("http://freemons.net/"));
 
             DetailsExtractor<T>.AddAdditionalText(embedBuilder);
 
