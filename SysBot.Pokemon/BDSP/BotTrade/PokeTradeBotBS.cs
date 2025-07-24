@@ -204,7 +204,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
         return ((ulong)trainerID << 32) | (uint)nameHash;
     }
 
-    private async Task<PB8> ApplyAutoOT(PB8 toSend, SAV8BS sav, string tradePartner, uint trainerTID7, uint trainerSID7, CancellationToken token)
+    private async Task<PB8> ApplyAutoOT(PB8 toSend, SAV8BS sav, string tradePartner, uint trainerTID7, uint trainerSID7, byte trainerGender, CancellationToken token)
     {
         if (token.IsCancellationRequested) return toSend;
 
@@ -268,7 +268,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
             cln.TrainerTID7 = trainerTID7;
             cln.TrainerSID7 = trainerSID7;
             cln.OriginalTrainerName = tradePartner;
-            // Any additional properties that would normally be set for BDSP
+            cln.OriginalTrainerGender = trainerGender;
         }
 
         ClearOTTrash(cln, tradePartner);
@@ -567,7 +567,16 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
 
         var id = await SwitchConnection.PointerPeek(4, Offsets.LinkTradePartnerIDPointer, token).ConfigureAwait(false);
         var name = await SwitchConnection.PointerPeek(TradePartnerBS.MaxByteLengthStringObject, Offsets.LinkTradePartnerNamePointer, token).ConfigureAwait(false);
-        return new TradePartnerBS(id, name);
+
+        // Read gender from first byte of param data
+        var genderByte = await SwitchConnection.PointerPeek(1, Offsets.LinkTradePartnerParamPointer, token).ConfigureAwait(false);
+
+        // Extract gender from bit 6 (0x40) - still needs testing, some tests i've done are accurate, some are not
+        // Bit 6 set = female, Bit 6 clear = male
+        bool isFemale = (genderByte[0] & 0x40) != 0;
+        byte gender = isFemale ? (byte)1 : (byte)0;
+
+        return new TradePartnerBS(id, name, gender);
     }
 
     private void HandleAbortedTrade(PokeTradeDetail<PB8> detail, PokeRoutineType type, uint priority, PokeTradeResult result)
@@ -929,7 +938,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
         var tradePartner = await GetTradePartnerInfo(token).ConfigureAwait(false);
         var trainerNID = GetFakeNID(tradePartner.TrainerName, tradePartner.TrainerID);
         RecordUtil<PokeTradeBotBS>.Record($"Initiating\t{trainerNID:X16}\t{tradePartner.TrainerName}\t{poke.Trainer.TrainerName}\t{poke.Trainer.ID}\t{poke.ID}\t{toSend.EncryptionConstant:X8}");
-        Log($"Found Link Trade partner: {tradePartner.TrainerName}-{tradePartner.TID7} (ID: {trainerNID})");
+        Log($"Found Link Trade partner: {tradePartner.TrainerName} (Gender: {tradePartner.GenderString})-{tradePartner.TID7} (ID: {trainerNID})");
         poke.SendNotification(this, $"Found Link Trade partner: {tradePartner.TrainerName}. **TID**: {tradePartner.TID7} **SID**: {tradePartner.SID7}. Waiting for a Pokémon...");
 
         var tradeCodeStorage = new TradeCodeStorage();
@@ -961,7 +970,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
 
         if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
         {
-            toSend = await ApplyAutoOT(toSend, sav, tradePartner.TrainerName, (uint)tid, (uint)sid, token);
+            toSend = await ApplyAutoOT(toSend, sav, tradePartner.TrainerName, (uint)tid, (uint)sid, tradePartner.Gender, token);
         }
 
         await Task.Delay(2_000, token).ConfigureAwait(false);
@@ -1202,7 +1211,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
                 {
                     if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT && cachedTradePartner != null)
                     {
-                        toSend = await ApplyAutoOT(toSend, sav, cachedTradePartner.TrainerName, cachedTID, cachedSID, token);
+                        toSend = await ApplyAutoOT(toSend, sav, cachedTradePartner.TrainerName, cachedTID, cachedSID, cachedTradePartner.Gender, token);
                         tradesToProcess[currentTradeIndex] = toSend; // Update the list
                     }
                     await SetBoxPokemonAbsolute(BoxStartOffset, toSend, token, sav).ConfigureAwait(false);
@@ -1312,7 +1321,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
                 return PokeTradeResult.SuspiciousActivity;
             }
 
-            Log($"Found Link Trade partner: {tradePartner.TrainerName}-{tradePartner.TID7} (ID: {trainerNID})");
+            Log($"Found Link Trade partner: {tradePartner.TrainerName} (Gender: {tradePartner.GenderString})-{tradePartner.TID7} (ID: {trainerNID})");
 
             // First trade only - send partner found notification
             if (currentTradeIndex == 0)
@@ -1329,7 +1338,7 @@ public class PokeTradeBotBS : PokeRoutineExecutor8BS, ICountBot, ITradeBot, IDis
             // Apply AutoOT for first trade if needed (already done for subsequent trades above)
             if (currentTradeIndex == 0 && Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
             {
-                toSend = await ApplyAutoOT(toSend, sav, tradePartner.TrainerName, (uint)tid, (uint)sid, token);
+                toSend = await ApplyAutoOT(toSend, sav, tradePartner.TrainerName, (uint)tid, (uint)sid, tradePartner.Gender, token);
                 poke.TradeData = toSend;
                 if (toSend.Species != 0)
                     await SetBoxPokemonAbsolute(BoxStartOffset, toSend, token, sav).ConfigureAwait(false);
