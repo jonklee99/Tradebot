@@ -12,7 +12,8 @@ For support on setting up your own instance of PokeBot, feel free to join the di
 [sys-botbase](https://github.com/olliz0r/sys-botbase) client for remote control automation of Nintendo Switch consoles.
 
 # Screenshots
-![image](https://github.com/user-attachments/assets/9cd4dd57-0095-4353-8fba-5cb5b9417bd6)
+![sysbotui](https://github.com/user-attachments/assets/577ef044-9110-43ce-b8df-0b9d3d7f0563)
+
 
 # Noteworthy Features
 - **Locally Hosted Control Panel** 

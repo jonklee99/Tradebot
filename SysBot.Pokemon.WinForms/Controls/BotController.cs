@@ -1,4 +1,5 @@
 using SysBot.Base;
+using SysBot.Pokemon.Discord;
 using System;
 using System.ComponentModel;
 using System.Drawing;
