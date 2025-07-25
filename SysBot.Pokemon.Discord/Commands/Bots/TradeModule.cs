@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Commands;
+using Discord.Net;
 using Discord.WebSocket;
 using Newtonsoft.Json;
 using PKHeX.Core;
@@ -8,6 +9,8 @@ using SysBot.Pokemon.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace SysBot.Pokemon.Discord;
@@ -16,29 +19,6 @@ namespace SysBot.Pokemon.Discord;
 public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new()
 {
     private static TradeQueueInfo<T> Info => SysCord<T>.Runner.Hub.Queues.Info;
-
-    #region Medal Achievement Command
-
-    [Command("medals")]
-    [Alias("ml")]
-    [Summary("Shows your current trade count and medal status")]
-    public async Task ShowMedalsCommand()
-    {
-        var tradeCodeStorage = new TradeCodeStorage();
-        int totalTrades = tradeCodeStorage.GetTradeCount(Context.User.Id);
-
-        if (totalTrades == 0)
-        {
-            await ReplyAsync($"{Context.User.Username}, you haven't made any trades yet. Start trading to earn your first medal!");
-            return;
-        }
-
-        int currentMilestone = MedalHelpers.GetCurrentMilestone(totalTrades);
-        var embed = MedalHelpers.CreateMedalsEmbed(Context.User, currentMilestone, totalTrades);
-        await Context.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
-    }
-
-    #endregion
 
     #region Trade Commands
 
@@ -662,6 +642,16 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             _ = Helpers<T>.DeleteMessagesAfterDelayAsync(userMessage, null, isHiddenTrade ? 0 : 2);
     }
 
+    private async Task ProcessTradeAttachmentAsync(int code, RequestSignificance sig, SocketUser user, bool isHiddenTrade = false, bool ignoreAutoOT = false)
+    {
+        var pk = await Helpers<T>.ProcessTradeAttachmentAsync(Context);
+        if (pk == null)
+            return;
+
+        await Helpers<T>.AddTradeToQueueAsync(Context, code, user.Username, pk, sig, user,
+            isHiddenTrade: isHiddenTrade, ignoreAutoOT: ignoreAutoOT);
+    }
+
     [Command("tradeprofile")]
     [Alias("tp")]
     [Summary("Displays the user's trade profile based on their stored trade code information.")]
@@ -675,7 +665,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         const string TradeCodesFile = "tradecodes.json";
 
         // Check if the file exists
-        if (!File.Exists(TradeCodesFile))
+        if (!File.Exists(TradeCodesFile)) // Correct usage of File.Exists
         {
             await Context.Channel.SendMessageAsync("The tradecodes file does not exist.").ConfigureAwait(false);
             await DeleteCommandMessage(userMessage);
@@ -766,11 +756,15 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [Alias("ml")]
     [Summary("Shows your current trade count and medal status")]
     public async Task ShowMedalsCommand()
-    private async Task ProcessTradeAttachmentAsync(int code, RequestSignificance sig, SocketUser user, bool isHiddenTrade = false, bool ignoreAutoOT = false)
     {
-        var pk = await Helpers<T>.ProcessTradeAttachmentAsync(Context);
-        if (pk == null)
+        var tradeCodeStorage = new TradeCodeStorage();
+        int totalTrades = tradeCodeStorage.GetTradeCount(Context.User.Id);
+
+        if (totalTrades == 0)
+        {
+            await ReplyAsync($"{Context.User.Username}, you haven't made any trades yet. Start trading to earn your first medal!");
             return;
+        }
 
         int currentMilestone = GetCurrentMilestone(totalTrades);
 
@@ -794,9 +788,58 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             // This exception is thrown if the user has DMs disabled
             await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM. Please check your privacy settings.").ConfigureAwait(false);
         }
-        await Helpers<T>.AddTradeToQueueAsync(Context, code, user.Username, pk, sig, user,
-            isHiddenTrade: isHiddenTrade, ignoreAutoOT: ignoreAutoOT);
     }
 
-    #endregion
+    private static int GetCurrentMilestone(int totalTrades)
+    {
+        int[] milestones = { 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100, 50, 1 };
+        return milestones.FirstOrDefault(m => totalTrades >= m, 0);
+    }
+
+    private static Embed CreateMedalsEmbed(SocketUser user, int milestone, int totalTrades)
+    {
+        string status = milestone switch
+        {
+            1 => "Newbie Trainer",
+            50 => "Novice Trainer",
+            100 => "Pokémon Professor",
+            150 => "Pokémon Specialist",
+            200 => "Pokémon Champion",
+            250 => "Pokémon Hero",
+            300 => "Pokémon Elite",
+            350 => "Pokémon Trader",
+            400 => "Pokémon Sage",
+            450 => "Pokémon Legend",
+            500 => "Region Master",
+            550 => "Trade Master",
+            600 => "World Famous",
+            650 => "Pokémon Master",
+            700 => "Pokémon God",
+            _ => "New Trainer"
+        };
+
+        string description = $"Total Trades: **{totalTrades}**\n**Current Status:** {status}";
+
+        if (milestone > 0)
+        {
+            string imageUrl = $"https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/{milestone:D3}.png";
+            return new EmbedBuilder()
+                .WithTitle($"{user.Username}'s Trading Status")
+                .WithColor(new Color(255, 215, 0)) // Gold
+                .WithDescription(description)
+                .WithThumbnailUrl(imageUrl)
+                .Build();
+        }
+        else
+        {
+            return new EmbedBuilder()
+                .WithTitle($"{user.Username}'s Trading Status")
+                .WithColor(new Color(255, 215, 0))
+                .WithDescription(description)
+                .Build();
+        }
+    }
+
 }
+
+#endregion
