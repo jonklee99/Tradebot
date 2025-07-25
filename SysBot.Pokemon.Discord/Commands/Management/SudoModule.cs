@@ -137,7 +137,7 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
             await ReplyAsync(Format.Code(msg)).ConfigureAwait(false);
         }
 
-        lines = PokeRoutineExecutorBase.PreviousUsersDistribution.Summarize().ToList();
+        lines = [.. PokeRoutineExecutorBase.PreviousUsersDistribution.Summarize()];
         if (lines.Count != 0)
         {
             found = true;

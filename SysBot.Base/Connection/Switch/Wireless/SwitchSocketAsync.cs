@@ -225,7 +225,7 @@ public sealed class SwitchSocketAsync : SwitchSocket, ISwitchConnectionAsync
         } while (flexBuffer.Count == 0 || flexBuffer.Last() != (byte)'\n');
 
         Connection.ReceiveTimeout = 0;
-        return flexBuffer.ToArray();
+        return [.. flexBuffer];
     }
 
     private async Task<byte[]> Read(ICommandBuilder b, ulong offset, int length, CancellationToken token)

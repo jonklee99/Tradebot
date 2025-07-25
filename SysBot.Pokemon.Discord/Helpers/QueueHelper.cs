@@ -312,7 +312,119 @@ public static class QueueHelper<T> where T : PKM, new()
         var botct = Info.Hub.Bots.Count;
         var baseEta = position.Position > botct ? Info.Hub.Config.Queues.EstimateDelay(position.Position, botct) : 0;
 
+        // Get user trade details for footer
+        int totalTradeCount = 0;
+        TradeCodeStorage.TradeCodeDetails? tradeDetails = null;
+        if (SysCord<T>.Runner.Config.Trade.TradeConfiguration.StoreTradeCodes)
+        {
+            var tradeCodeStorage = new TradeCodeStorage();
+            totalTradeCount = tradeCodeStorage.GetTradeCount(trader.Id);
+            tradeDetails = tradeCodeStorage.GetTradeDetails(trader.Id);
+        }
+
+        // Send initial batch summary message
         await context.Channel.SendMessageAsync($"{trader.Mention} - Added batch trade with {totalBatchTrades} Pokémon to the queue! Position: {position.Position}. Estimated: {baseEta:F1} min(s).").ConfigureAwait(false);
+
+        // Create and send embeds for each Pokémon in the batch
+        if (SysCord<T>.Runner.Config.Trade.TradeEmbedSettings.UseEmbeds)
+        {
+            for (int i = 0; i < allTrades.Count; i++)
+            {
+                var pk = allTrades[i];
+                var batchTradeNumber = i + 1;
+
+                // Extract details for this Pokémon
+                var embedData = DetailsExtractor<T>.ExtractPokemonDetails(
+                    pk, trader, false, false, false, false, false, true, batchTradeNumber, totalBatchTrades
+                );
+
+                try
+                {
+                    // Prepare embed details
+                    (string embedImageUrl, DiscordColor embedColor) = await PrepareEmbedDetails(pk);
+
+                    embedData.EmbedImageUrl = embedImageUrl;
+                    embedData.HeldItemUrl = string.Empty;
+                    if (!string.IsNullOrWhiteSpace(embedData.HeldItem))
+                    {
+                        string heldItemName = embedData.HeldItem.ToLower().Replace(" ", "");
+                        embedData.HeldItemUrl = $"https://serebii.net/itemdex/sprites/{heldItemName}.png";
+                    }
+
+                    embedData.IsLocalFile = File.Exists(embedData.EmbedImageUrl);
+
+                    // Build footer text with batch info
+                    string footerText = $"Batch Trade {batchTradeNumber} of {totalBatchTrades}";
+                    if (i == 0) // Only show position and ETA on first embed
+                    {
+                        footerText += $" | Position: {position.Position}";
+                        string userDetailsText = DetailsExtractor<T>.GetUserDetails(totalTradeCount, tradeDetails);
+                        if (!string.IsNullOrEmpty(userDetailsText))
+                        {
+                            footerText += $"\n{userDetailsText}";
+                        }
+                        footerText += $"\nEstimated: {baseEta:F1} min(s) for batch";
+                    }
+
+                    // Create embed
+                    var embedBuilder = new EmbedBuilder()
+                        .WithColor(embedColor)
+                        .WithImageUrl(embedData.IsLocalFile ? $"attachment://{Path.GetFileName(embedData.EmbedImageUrl)}" : embedData.EmbedImageUrl)
+                        .WithFooter(footerText)
+                        .WithAuthor(new EmbedAuthorBuilder()
+                            .WithName(embedData.AuthorName)
+                            .WithIconUrl(trader.GetAvatarUrl() ?? trader.GetDefaultAvatarUrl())
+                            .WithUrl("https://genpkm.com"));
+
+                    DetailsExtractor<T>.AddAdditionalText(embedBuilder);
+                    DetailsExtractor<T>.AddNormalTradeFields(embedBuilder, embedData, trader.Mention, pk);
+
+                    // Check for Non-Native and Home Tracker
+                    bool isNonNative = false; // You may need to pass this from the batch trade processing
+                    if (pk is IHomeTrack homeTrack)
+                    {
+                        if (homeTrack.HasTracker)
+                        {
+                            embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                            embedBuilder.AddField("**__Notice__**: **Home Tracker Detected.**", "*AutoOT not applied.*");
+                        }
+                    }
+
+                    DetailsExtractor<T>.AddThumbnails(embedBuilder, false, false, embedData.HeldItemUrl);
+
+                    var embed = embedBuilder.Build();
+
+                    // Send embed
+                    if (embedData.IsLocalFile)
+                    {
+                        await context.Channel.SendFileAsync(embedData.EmbedImageUrl, embed: embed);
+                        await ScheduleFileDeletion(embedData.EmbedImageUrl, 0);
+                    }
+                    else
+                    {
+                        await context.Channel.SendMessageAsync(embed: embed);
+                    }
+
+                    // Small delay between embeds to avoid rate limiting
+                    if (i < allTrades.Count - 1)
+                    {
+                        await Task.Delay(500);
+                    }
+                }
+                catch (HttpException ex)
+                {
+                    await HandleDiscordExceptionAsync(context, trader, ex);
+                }
+            }
+        }
+
+        // Send milestone embed if applicable
+        if (SysCord<T>.Runner.Hub.Config.Trade.TradeConfiguration.StoreTradeCodes)
+        {
+            var tradeCodeStorage = new TradeCodeStorage();
+            int tradeCount = tradeCodeStorage.GetTradeCount(trader.Id);
+            _ = SendMilestoneEmbed(tradeCount, context.Channel, trader);
+        }
     }
 
     private static int GenerateUniqueTradeID()

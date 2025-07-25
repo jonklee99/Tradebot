@@ -337,7 +337,7 @@ namespace SysBot.Pokemon.Discord
 
         private async Task AddTradeToQueueAsync(int code, string trainerName, T pk, RequestSignificance sig, SocketUser usr, bool isBatchTrade = false, int batchTradeNumber = 1, int totalBatchTrades = 1, bool isMysteryEgg = false, List<Pictocodes>? lgcode = null, PokeTradeType tradeType = PokeTradeType.Specific, bool ignoreAutoOT = false, bool isHiddenTrade = false)
         {
-            lgcode ??= TradeModule<T>.GenerateRandomPictocodes(3);
+            lgcode ??= Helpers<T>.GenerateRandomPictocodes(3);
             var la = new LegalityAnalysis(pk);
             if (!la.Valid)
             {
