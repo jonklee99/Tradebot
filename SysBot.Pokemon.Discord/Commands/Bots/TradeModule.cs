@@ -537,11 +537,9 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 "You already have an existing trade in the queue that cannot be cleared. Please wait until it is processed.", 2);
             return;
         }
-
         content = ReusableActions.StripCodeBlock(content);
         var trades = BatchHelpers<T>.ParseBatchTradeContent(content);
         const int maxTradesAllowed = 4;
-
         if (maxTradesAllowed < 1 || trades.Count > maxTradesAllowed)
         {
             await Helpers<T>.ReplyAndDeleteAsync(Context,
@@ -549,45 +547,62 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        var batchPokemonList = new List<T>();
-        var errors = new List<BatchTradeError>();
+        var processingMessage = await Context.Channel.SendMessageAsync($"{Context.User.Mention} Processing your batch trade with {trades.Count} Pokémon...");
 
-        for (int i = 0; i < trades.Count; i++)
+        _ = Task.Run(async () =>
         {
-            var (pk, error, set, legalizationHint) = await BatchHelpers<T>.ProcessSingleTradeForBatch(trades[i]);
-
-            if (pk != null)
+            try
             {
-                batchPokemonList.Add(pk);
-            }
-            else
-            {
-                var speciesName = set != null && set.Species > 0
-                    ? GameInfo.Strings.Species[set.Species]
-                    : "Unknown";
-
-                errors.Add(new BatchTradeError
+                var batchPokemonList = new List<T>();
+                var errors = new List<BatchTradeError>();
+                for (int i = 0; i < trades.Count; i++)
                 {
-                    TradeNumber = i + 1,
-                    SpeciesName = speciesName,
-                    ErrorMessage = error ?? "Unknown error",
-                    LegalizationHint = legalizationHint,
-                    ShowdownSet = set != null ? string.Join("\n", set.GetSetLines()) : trades[i]
-                });
+                    var (pk, error, set, legalizationHint) = await BatchHelpers<T>.ProcessSingleTradeForBatch(trades[i]);
+                    if (pk != null)
+                    {
+                        batchPokemonList.Add(pk);
+                    }
+                    else
+                    {
+                        var speciesName = set != null && set.Species > 0
+                            ? GameInfo.Strings.Species[set.Species]
+                            : "Unknown";
+                        errors.Add(new BatchTradeError
+                        {
+                            TradeNumber = i + 1,
+                            SpeciesName = speciesName,
+                            ErrorMessage = error ?? "Unknown error",
+                            LegalizationHint = legalizationHint,
+                            ShowdownSet = set != null ? string.Join("\n", set.GetSetLines()) : trades[i]
+                        });
+                    }
+                }
+
+                await processingMessage.DeleteAsync();
+
+                if (errors.Count > 0)
+                {
+                    await BatchHelpers<T>.SendBatchErrorEmbedAsync(Context, errors, trades.Count);
+                    return;
+                }
+                if (batchPokemonList.Count > 0)
+                {
+                    var batchTradeCode = Info.GetRandomTradeCode(userID);
+                    await BatchHelpers<T>.ProcessBatchContainer(Context, batchPokemonList, batchTradeCode, trades.Count);
+                }
             }
-        }
+            catch (Exception ex)
+            {
+                try
+                {
+                    await processingMessage.DeleteAsync();
+                }
+                catch { }
 
-        if (errors.Count > 0)
-        {
-            await BatchHelpers<T>.SendBatchErrorEmbedAsync(Context, errors, trades.Count);
-            return;
-        }
-
-        if (batchPokemonList.Count > 0)
-        {
-            var batchTradeCode = Info.GetRandomTradeCode(userID);
-            await BatchHelpers<T>.ProcessBatchContainer(Context, batchPokemonList, batchTradeCode, trades.Count);
-        }
+                await Context.Channel.SendMessageAsync($"{Context.User.Mention} An error occurred while processing your batch trade. Please try again.");
+                Base.LogUtil.LogError($"Batch trade processing error: {ex.Message}", nameof(BatchTradeAsync));
+            }
+        });
 
         if (Context.Message is IUserMessage userMessage)
             _ = Helpers<T>.DeleteMessagesAfterDelayAsync(userMessage, null, 2);

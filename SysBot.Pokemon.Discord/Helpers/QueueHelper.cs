@@ -494,7 +494,7 @@ public static class QueueHelper<T> where T : PKM, new()
         if (Uri.TryCreate(embedImageUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeFile)
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            using var localImage = System.Drawing.Image.FromFile(uri.LocalPath);
+            using var localImage = await Task.Run(() => System.Drawing.Image.FromFile(uri.LocalPath));
 #pragma warning restore CA1416 // Validate platform compatibility
             using var ballImage = await LoadImageFromUrl(ballImgUrl);
             if (ballImage != null)
@@ -526,39 +526,37 @@ public static class QueueHelper<T> where T : PKM, new()
 
     private static async Task<(System.Drawing.Image, bool)> OverlayBallOnSpecies(string speciesImageUrl, string ballImageUrl)
     {
-        using (var speciesImage = await LoadImageFromUrl(speciesImageUrl))
+        using var speciesImage = await LoadImageFromUrl(speciesImageUrl);
+        if (speciesImage == null)
         {
-            if (speciesImage == null)
-            {
-                Console.WriteLine("Species image could not be loaded.");
+            Console.WriteLine("Species image could not be loaded.");
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-                return (null, false);
+            return (null, false);
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
-            }
+        }
 
-            var ballImage = await LoadImageFromUrl(ballImageUrl);
-            if (ballImage == null)
+        var ballImage = await LoadImageFromUrl(ballImageUrl);
+        if (ballImage == null)
+        {
+            Console.WriteLine($"Ball image could not be loaded: {ballImageUrl}");
+#pragma warning disable CA1416 // Validate platform compatibility
+            return ((System.Drawing.Image)speciesImage.Clone(), false);
+#pragma warning restore CA1416 // Validate platform compatibility
+        }
+
+        using (ballImage)
+        {
+#pragma warning disable CA1416 // Validate platform compatibility
+            using (var graphics = Graphics.FromImage(speciesImage))
             {
-                Console.WriteLine($"Ball image could not be loaded: {ballImageUrl}");
-#pragma warning disable CA1416 // Validate platform compatibility
-                return ((System.Drawing.Image)speciesImage.Clone(), false);
-#pragma warning restore CA1416 // Validate platform compatibility
+                var ballPosition = new Point(speciesImage.Width - ballImage.Width, speciesImage.Height - ballImage.Height);
+                graphics.DrawImage(ballImage, ballPosition);
             }
-
-            using (ballImage)
-            {
-#pragma warning disable CA1416 // Validate platform compatibility
-                using (var graphics = Graphics.FromImage(speciesImage))
-                {
-                    var ballPosition = new Point(speciesImage.Width - ballImage.Width, speciesImage.Height - ballImage.Height);
-                    graphics.DrawImage(ballImage, ballPosition);
-                }
 #pragma warning restore CA1416 // Validate platform compatibility
 
 #pragma warning disable CA1416 // Validate platform compatibility
-                return ((System.Drawing.Image)speciesImage.Clone(), true);
+            return ((System.Drawing.Image)speciesImage.Clone(), true);
 #pragma warning restore CA1416 // Validate platform compatibility
-            }
         }
     }
 
@@ -569,7 +567,7 @@ public static class QueueHelper<T> where T : PKM, new()
 
 #pragma warning disable CA1416 // Validate platform compatibility
         double scaleRatio = Math.Min((double)eggImage.Width / speciesImage.Width, (double)eggImage.Height / speciesImage.Height);
-        Size newSize = new Size((int)(speciesImage.Width * scaleRatio), (int)(speciesImage.Height * scaleRatio));
+        Size newSize = new((int)(speciesImage.Width * scaleRatio), (int)(speciesImage.Height * scaleRatio));
         System.Drawing.Image resizedSpeciesImage = new Bitmap(speciesImage, newSize);
 
         using (Graphics g = Graphics.FromImage(eggImage))
@@ -586,7 +584,7 @@ public static class QueueHelper<T> where T : PKM, new()
         int newWidth = (int)(eggImage.Width * scale);
         int newHeight = (int)(eggImage.Height * scale);
 
-        Bitmap finalImage = new Bitmap(128, 128);
+        Bitmap finalImage = new(128, 128);
 
         using (Graphics g = Graphics.FromImage(finalImage))
         {
@@ -674,34 +672,37 @@ public static class QueueHelper<T> where T : PKM, new()
 
             var colorCount = new Dictionary<Color, int>();
 #pragma warning disable CA1416 // Validate platform compatibility
-            for (int y = 0; y < image.Height; y++)
+            await Task.Run(() =>
             {
-                for (int x = 0; x < image.Width; x++)
+                for (int y = 0; y < image.Height; y++)
                 {
-                    var pixelColor = image.GetPixel(x, y);
-
-                    if (pixelColor.A < 128 || pixelColor.GetBrightness() > 0.9) continue;
-
-                    var brightnessFactor = (int)(pixelColor.GetBrightness() * 100);
-                    var saturationFactor = (int)(pixelColor.GetSaturation() * 100);
-                    var combinedFactor = brightnessFactor + saturationFactor;
-
-                    var quantizedColor = Color.FromArgb(
-                        pixelColor.R / 10 * 10,
-                        pixelColor.G / 10 * 10,
-                        pixelColor.B / 10 * 10
-                    );
-
-                    if (colorCount.ContainsKey(quantizedColor))
+                    for (int x = 0; x < image.Width; x++)
                     {
-                        colorCount[quantizedColor] += combinedFactor;
-                    }
-                    else
-                    {
-                        colorCount[quantizedColor] = combinedFactor;
+                        var pixelColor = image.GetPixel(x, y);
+
+                        if (pixelColor.A < 128 || pixelColor.GetBrightness() > 0.9) continue;
+
+                        var brightnessFactor = (int)(pixelColor.GetBrightness() * 100);
+                        var saturationFactor = (int)(pixelColor.GetSaturation() * 100);
+                        var combinedFactor = brightnessFactor + saturationFactor;
+
+                        var quantizedColor = Color.FromArgb(
+                            pixelColor.R / 10 * 10,
+                            pixelColor.G / 10 * 10,
+                            pixelColor.B / 10 * 10
+                        );
+
+                        if (colorCount.ContainsKey(quantizedColor))
+                        {
+                            colorCount[quantizedColor] += combinedFactor;
+                        }
+                        else
+                        {
+                            colorCount[quantizedColor] = combinedFactor;
+                        }
                     }
                 }
-            }
+            });
 
             image.Dispose();
 #pragma warning restore CA1416 // Validate platform compatibility
@@ -829,7 +830,7 @@ public static class QueueHelper<T> where T : PKM, new()
         int outputImageWidth = spritearray[0].Width + 20;
         int outputImageHeight = spritearray[0].Height - 65;
 
-        Bitmap outputImage = new Bitmap(outputImageWidth, outputImageHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        Bitmap outputImage = new(outputImageWidth, outputImageHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
         using (Graphics graphics = Graphics.FromImage(outputImage))
         {
