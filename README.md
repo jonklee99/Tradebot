@@ -1,5 +1,9 @@
 # Project PokeBot
 ![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/hexbyt3/PokeBot/total?style=flat-square&logoColor=Red&color=red)
+
+
+
 
 ![image](https://github.com/user-attachments/assets/bee51b3d-92a0-482c-a4ad-7f9f08d21f51)
 
