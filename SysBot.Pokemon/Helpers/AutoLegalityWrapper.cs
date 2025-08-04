@@ -123,13 +123,12 @@ public static class AutoLegalityWrapper
         if (exist is SimpleTrainerInfo) // not anything from files; this assumes ALM returns SimpleTrainerInfo for non-user-provided fake templates.
             TrainerSettings.Register(fallback);
     }
+
     private static void InitializeCoreStrings()
     {
         var lang = Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName[..2];
-        LocalizationUtil.SetLocalization(typeof(LegalityCheckStrings), lang);
+        LocalizationUtil.SetLocalization(typeof(LegalityCheckResultCode), lang);
         LocalizationUtil.SetLocalization(typeof(MessageStrings), lang);
-        RibbonStrings.ResetDictionary(GameInfo.Strings.ribbons);
-        ParseSettings.ChangeLocalizationStrings(GameInfo.Strings.movelist, GameInfo.Strings.specieslist);
     }
 
     public static bool CanBeTraded(this PKM pkm)

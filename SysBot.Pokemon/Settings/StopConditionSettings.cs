@@ -102,7 +102,7 @@ public class StopConditionSettings
         for (var mark = RibbonIndex.MarkLunchtime; mark <= RibbonIndex.MarkSlump; mark++)
         {
             if (pk.GetRibbon((int)mark))
-                return RibbonStrings.GetName($"Ribbon{mark}");
+                return GameInfo.Strings.Ribbons.GetName($"Ribbon{mark}");
         }
         return "";
     }
