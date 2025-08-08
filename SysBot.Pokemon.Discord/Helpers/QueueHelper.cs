@@ -380,7 +380,6 @@ public static class QueueHelper<T> where T : PKM, new()
                     DetailsExtractor<T>.AddNormalTradeFields(embedBuilder, embedData, trader.Mention, pk);
 
                     // Check for Non-Native and Home Tracker
-                    bool isNonNative = false; // You may need to pass this from the batch trade processing
                     if (pk is IHomeTrack homeTrack)
                     {
                         if (homeTrack.HasTracker)
@@ -468,8 +467,11 @@ public static class QueueHelper<T> where T : PKM, new()
         {
             string eggImageUrl = GetEggTypeImageUrl(pk);
             speciesImageUrl = TradeExtensions<T>.PokeImg(pk, false, true, null);
-            System.Drawing.Image combinedImage = await OverlaySpeciesOnEgg(eggImageUrl, speciesImageUrl);
-            embedImageUrl = SaveImageLocally(combinedImage);
+            System.Drawing.Image? combinedImage = await OverlaySpeciesOnEgg(eggImageUrl, speciesImageUrl);
+            if (combinedImage != null)
+                embedImageUrl = SaveImageLocally(combinedImage);
+            else
+                embedImageUrl = speciesImageUrl;
         }
         else
         {
@@ -560,10 +562,13 @@ public static class QueueHelper<T> where T : PKM, new()
         }
     }
 
-    private static async Task<System.Drawing.Image> OverlaySpeciesOnEgg(string eggImageUrl, string speciesImageUrl)
+    private static async Task<System.Drawing.Image?> OverlaySpeciesOnEgg(string eggImageUrl, string speciesImageUrl)
     {
-        System.Drawing.Image eggImage = await LoadImageFromUrl(eggImageUrl);
-        System.Drawing.Image speciesImage = await LoadImageFromUrl(speciesImageUrl);
+        System.Drawing.Image? eggImage = await LoadImageFromUrl(eggImageUrl);
+        System.Drawing.Image? speciesImage = await LoadImageFromUrl(speciesImageUrl);
+        
+        if (eggImage == null || speciesImage == null)
+            return null;
 
 #pragma warning disable CA1416 // Validate platform compatibility
         double scaleRatio = Math.Min((double)eggImage.Width / speciesImage.Width, (double)eggImage.Height / speciesImage.Height);

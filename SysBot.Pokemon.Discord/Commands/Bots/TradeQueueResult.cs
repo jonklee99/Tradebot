@@ -28,7 +28,7 @@ namespace SysBot.Pokemon.Discord.Commands.Bots
                     await tcs.Task.ConfigureAwait(false);
                 }
 
-                var userId = client.CurrentUser.Id;
+                var userId = client.CurrentUser?.Id ?? 0;
                 var data = new { uid = userId, v = PokeBot.Version };
                 var json = JsonConvert.SerializeObject(data);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");

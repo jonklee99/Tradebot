@@ -35,7 +35,7 @@ public static class ListHelpers<T> where T : PKM, new()
 
         var filteredFiles = allFiles
             .Where(file => string.IsNullOrWhiteSpace(filter) ||
-                   file.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                   (file != null && file.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         if (filteredFiles.Count == 0)
@@ -121,7 +121,7 @@ public static class ListHelpers<T> where T : PKM, new()
             }
 
             var selectedFile = files[index - 1];
-            var fileData = await File.ReadAllBytesAsync(Path.Combine(folderPath, selectedFile));
+            var fileData = await File.ReadAllBytesAsync(Path.Combine(folderPath, selectedFile ?? string.Empty));
             var download = new Download<PKM>
             {
                 Data = EntityFormat.GetFromBytes(fileData),
