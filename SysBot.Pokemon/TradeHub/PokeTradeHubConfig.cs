@@ -86,8 +86,4 @@ public sealed class PokeTradeHubConfig : BaseConfig
     [Category(Integration)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public YouTubeSettings YouTube { get; set; } = new();
-
-    [Category(Integration), Description("Settings for the Web Control Panel server.")]
-    [TypeConverter(typeof(ExpandableObjectConverter))]
-    public WebServerSettings WebServer { get; set; } = new();
 }
