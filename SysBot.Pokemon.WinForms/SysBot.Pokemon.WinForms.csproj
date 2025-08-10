@@ -25,9 +25,13 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Resources\bdsp_mode_image.png" />
+    <None Remove="Resources\BotControlPanel.css" />
     <None Remove="Resources\BotControlPanel.html" />
+    <None Remove="Resources\BotControlPanel.js" />
+    <None Remove="Resources\LeftJoyCon.png" />
     <None Remove="Resources\lgpe_mode_image.png" />
     <None Remove="Resources\pla_mode_image.png" />
+    <None Remove="Resources\RightJoyCon.png" />
     <None Remove="Resources\sv_mode_image.png" />
     <None Remove="Resources\swsh_mode_image.png" />
   </ItemGroup>
@@ -35,13 +39,25 @@
     <EmbeddedResource Include="Resources\bdsp_mode_image.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\BotControlPanel.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="Resources\BotControlPanel.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\BotControlPanel.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\LeftJoyCon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\lgpe_mode_image.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\pla_mode_image.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\RightJoyCon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\sv_mode_image.png">

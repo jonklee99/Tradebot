@@ -1,2922 +1,566 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
-    <title>PokeBot Control Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="description" content="Pokemon Bot Control Panel - Manage and monitor your Pokemon automation bots">
+    <title>PokéBot Control Center</title>
     <link rel="icon" type="image/x-icon" href="/icon.ico">
-    <style>
-        :root {
-            --bg-primary: #0a0e27;
-            --bg-secondary: #151932;
-            --bg-card: #1e2139;
-            --bg-hover: #252846;
-            --text-primary: #ffffff;
-            --text-secondary: #a8aec0;
-            --accent: #7c3aed;
-            --accent-hover: #6d28d9;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --border: #2d3054;
-            --online: #10b981;
-            --offline: #6b7280;
-            --idle: #f59e0b;
-            --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
-            --border-radius: 12px;
-            --border-radius-sm: 8px;
-            --spacing-xs: 0.25rem;
-            --spacing-sm: 0.5rem;
-            --spacing-md: 1rem;
-            --spacing-lg: 1.5rem;
-            --spacing-xl: 2rem;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            font-size: clamp(14px, 2.5vw, 16px);
-        }
-
-        .app {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            background: rgba(21, 25, 50, 0.95);
-            padding: var(--spacing-md) var(--spacing-lg);
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: var(--spacing-md);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-md);
-            min-width: 0;
-        }
-
-            .logo h1 {
-                font-size: clamp(1.25rem, 4vw, 1.5rem);
-                font-weight: 700;
-                color: var(--accent);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--success);
-            animation: pulse 2s infinite;
-            flex-shrink: 0;
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-            }
-        }
-
-        .refresh-status {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .refresh-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--success);
-            transition: all 0.3s ease;
-            cursor: help;
-        }
-
-            .refresh-indicator.paused {
-                background: var(--warning);
-                animation: pulse-warning 2s infinite;
-            }
-
-            .refresh-indicator:hover {
-                transform: scale(1.5);
-            }
-
-        @keyframes pulse-warning {
-            0% {
-                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
-            }
-
-            70% {
-                box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
-            }
-        }
-
-        .main {
-            flex: 1;
-            padding: var(--spacing-lg);
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .global-controls {
-            background: var(--bg-card);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-xl);
-            border: 1px solid var(--border);
-        }
-
-            .global-controls h2 {
-                font-size: clamp(1rem, 3vw, 1.2rem);
-                margin-bottom: var(--spacing-md);
-                color: var(--text-secondary);
-            }
-
-        .control-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: var(--spacing-sm);
-        }
-
-        .btn {
-            padding: var(--spacing-sm) var(--spacing-md);
-            border: none;
-            border-radius: var(--border-radius-sm);
-            font-size: clamp(0.75rem, 2.5vw, 0.875rem);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--spacing-xs);
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            position: relative;
-            overflow: hidden;
-            min-height: 44px;
-            white-space: nowrap;
-            text-decoration: none;
-        }
-
-            .btn:hover:not(:disabled) {
-                transform: translateY(-2px);
-                box-shadow: var(--shadow);
-            }
-
-            .btn:active {
-                transform: translateY(0);
-            }
-
-            .btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none !important;
-            }
-
-        .btn-primary {
-            background: var(--accent);
-            border-color: var(--accent);
-        }
-
-            .btn-primary:hover:not(:disabled) {
-                background: var(--accent-hover);
-            }
-
-        .btn-success {
-            background: var(--success);
-            border-color: var(--success);
-        }
-
-        .btn-warning {
-            background: var(--warning);
-            border-color: var(--warning);
-            color: #000;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            border-color: var(--danger);
-        }
-
-        .scheduled-restart-section {
-            background: var(--bg-card);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-xl);
-            border: 1px solid var(--border);
-        }
-
-        .scheduled-restart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
-        }
-
-            .scheduled-restart-header h2 {
-                font-size: clamp(1rem, 3vw, 1.2rem);
-                color: var(--text-secondary);
-            }
-
-        .restart-schedule-controls {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-md);
-            flex-wrap: wrap;
-        }
-
-        .schedule-toggle {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 48px;
-            height: 24px;
-            cursor: pointer;
-        }
-
-            .toggle-switch input {
-                display: none;
-            }
-
-        .toggle-slider {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--bg-hover);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            transition: all 0.3s ease;
-        }
-
-            .toggle-slider::before {
-                content: '';
-                position: absolute;
-                width: 16px;
-                height: 16px;
-                left: 4px;
-                bottom: 3px;
-                background: var(--text-secondary);
-                border-radius: 50%;
-                transition: all 0.3s ease;
-            }
-
-        .toggle-switch input:checked + .toggle-slider {
-            background: var(--accent);
-            border-color: var(--accent);
-        }
-
-            .toggle-switch input:checked + .toggle-slider::before {
-                transform: translateX(24px);
-                background: white;
-            }
-
-        .time-input-group {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .time-input {
-            background: var(--bg-hover);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-sm) var(--spacing-md);
-            color: var(--text-primary);
-            font-size: 12px;
-            font-family: monospace;
-            width: 100px;
-            transition: all 0.2s ease;
-        }
-
-            .time-input:focus {
-                outline: none;
-                border-color: var(--accent);
-                box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
-            }
-
-            .time-input:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-        .schedule-status {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            padding: var(--spacing-sm);
-            background: var(--bg-hover);
-            border-radius: var(--border-radius-sm);
-        }
-
-            .schedule-status.active {
-                color: var(--success);
-                background: rgba(16, 185, 129, 0.1);
-                border: 1px solid rgba(16, 185, 129, 0.3);
-            }
-
-        .next-restart-time {
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .instances-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr));
-            gap: var(--spacing-lg);
-        }
-
-        .instance-card {
-            background: var(--bg-card);
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border);
-            overflow: hidden;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-            .instance-card.online {
-                border-color: var(--online);
-            }
-
-            .instance-card.offline {
-                opacity: 0.7;
-                border-color: var(--offline);
-            }
-
-            .instance-card:hover {
-                transform: translateY(-4px);
-                box-shadow: var(--shadow-hover);
-            }
-
-        .instance-header {
-            background: var(--bg-secondary);
-            padding: var(--spacing-md) var(--spacing-lg);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 1px solid var(--border);
-            gap: var(--spacing-sm);
-        }
-
-        .instance-title {
-            font-size: clamp(0.95rem, 3vw, 1.1rem);
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            min-width: 0;
-            flex: 1;
-        }
-
-        .instance-badge {
-            padding: var(--spacing-xs) var(--spacing-sm);
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--bg-hover);
-            color: var(--text-secondary);
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .instance-body {
-            padding: var(--spacing-lg);
-        }
-
-        .instance-info {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: var(--spacing-md);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-xs);
-        }
-
-        .info-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .info-value {
-            font-size: 0.95rem;
-            font-weight: 600;
-            word-break: break-word;
-        }
-
-        .bot-status {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: var(--spacing-sm);
-            margin-bottom: var(--spacing-md);
-            padding: var(--spacing-sm);
-            background: var(--bg-hover);
-            border-radius: var(--border-radius-sm);
-        }
-
-        .bot-status-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.875rem;
-            padding: var(--spacing-xs) 0;
-            gap: var(--spacing-sm);
-        }
-
-            .bot-status-item .bot-name {
-                display: flex;
-                align-items: center;
-                gap: var(--spacing-sm);
-                min-width: 0;
-                flex: 1;
-            }
-
-                .bot-status-item .bot-name span:first-child {
-                    flex-shrink: 0;
-                }
-
-                .bot-status-item .bot-name span:last-child {
-                    word-break: break-word;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-
-            .bot-status-item .bot-state {
-                font-weight: 600;
-                padding: var(--spacing-xs) var(--spacing-sm);
-                border-radius: 4px;
-                font-size: 0.75rem;
-                white-space: nowrap;
-                flex-shrink: 0;
-            }
-
-        .bot-state.running {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
-
-        .bot-state.stopped {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
-
-        .bot-state.idle {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--idle);
-        }
-
-        .bot-state.error {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 200px;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .error-message {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--danger);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-md);
-            margin: var(--spacing-md) 0;
-            color: var(--danger);
-            display: flex;
-            align-items: flex-start;
-            gap: var(--spacing-sm);
-            word-break: break-word;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: var(--spacing-xl);
-            right: var(--spacing-xl);
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-md) var(--spacing-lg);
-            box-shadow: var(--shadow-hover);
-            transform: translateX(calc(100% + var(--spacing-xl)));
-            transition: transform 0.3s ease;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            max-width: min(500px, calc(100vw - 2rem));
-            word-break: break-word;
-            opacity: 1;
-        }
-
-            .toast.show {
-                transform: translateX(0);
-            }
-
-            .toast.success {
-                border-color: var(--success);
-                background: var(--bg-card);
-            }
-
-            .toast.error {
-                border-color: var(--danger);
-                background: var(--bg-card);
-            }
-
-            .toast.warning {
-                border-color: var(--warning);
-                background: var(--bg-card);
-            }
-
-            .toast.info {
-                border-color: var(--accent);
-                background: var(--bg-card);
-            }
-
-        .toast-icon {
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-
-        .online-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--online);
-            display: inline-block;
-            margin-right: var(--spacing-sm);
-            flex-shrink: 0;
-        }
-
-        .offline-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--offline);
-            display: inline-block;
-            margin-right: var(--spacing-sm);
-            flex-shrink: 0;
-        }
-
-        .instance-status-badge {
-            padding: var(--spacing-xs) var(--spacing-sm);
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-        }
-
-            .instance-status-badge.running {
-                background: rgba(16, 185, 129, 0.2);
-                color: var(--success);
-                border: 1px solid var(--success);
-            }
-
-            .instance-status-badge.stopped {
-                background: rgba(239, 68, 68, 0.2);
-                color: var(--danger);
-                border: 1px solid var(--danger);
-            }
-
-            .instance-status-badge.idle {
-                background: rgba(245, 158, 11, 0.2);
-                color: var(--idle);
-                border: 1px solid var(--idle);
-            }
-
-            .instance-status-badge.mixed {
-                background: rgba(168, 174, 192, 0.2);
-                color: var(--text-secondary);
-                border: 1px solid var(--text-secondary);
-            }
-
-        .instance-controls {
-            position: relative;
-        }
-
-        .action-menu-button {
-            padding: var(--spacing-sm) var(--spacing-md);
-            background: var(--bg-hover);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-xs);
-            width: 100%;
-            justify-content: center;
-            min-height: 44px;
-        }
-
-            .action-menu-button:hover:not(:disabled) {
-                background: var(--accent);
-                border-color: var(--accent);
-                transform: translateY(-1px);
-                box-shadow: var(--shadow);
-            }
-
-            .action-menu-button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-        .action-menu {
-            position: absolute;
-            bottom: calc(100% + var(--spacing-xs));
-            left: 0;
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            box-shadow: var(--shadow-hover);
-            overflow: hidden;
-            display: none;
-            z-index: 1000;
-        }
-
-            .action-menu.show {
-                display: block;
-            }
-
-        .action-menu-item {
-            padding: var(--spacing-sm) var(--spacing-md);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-            cursor: pointer;
-            transition: background 0.2s ease;
-            font-size: 0.875rem;
-            white-space: nowrap;
-            border: none;
-            background: none;
-            color: var(--text-primary);
-            width: 100%;
-            text-align: left;
-        }
-
-            .action-menu-item:hover {
-                background: var(--bg-hover);
-            }
-
-            .action-menu-item.success {
-                color: var(--success);
-            }
-
-            .action-menu-item.warning {
-                color: var(--warning);
-            }
-
-            .action-menu-item.danger {
-                color: var(--danger);
-            }
-
-        .action-menu-divider {
-            height: 1px;
-            background: var(--border);
-            margin: var(--spacing-xs) 0;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            backdrop-filter: blur(4px);
-            animation: fadeIn 0.3s ease;
-        }
-
-            .modal.show {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: var(--spacing-lg);
-            }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            border-radius: var(--border-radius);
-            border: 1px solid var(--border);
-            max-width: 600px;
-            width: 100%;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow-hover);
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateY(-20px);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .progress-modal-content {
-            max-width: 700px;
-        }
-
-        .modal-header {
-            padding: var(--spacing-lg);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-            .modal-header h2 {
-                margin: 0;
-                font-size: 1.5rem;
-                color: var(--accent);
-            }
-
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-
-            .modal-close:hover {
-                background: var(--bg-hover);
-                color: var(--text-primary);
-            }
-
-        .modal-body {
-            padding: var(--spacing-lg);
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .modal-footer {
-            padding: var(--spacing-lg);
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: var(--spacing-sm);
-            justify-content: flex-end;
-        }
-
-        .update-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-md);
-            padding: var(--spacing-lg);
-            background: var(--bg-hover);
-            border-radius: var(--border-radius-sm);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .version-info {
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-xs);
-            align-items: center;
-            text-align: center;
-        }
-
-        .version-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .version-value {
-            font-size: 1.25rem;
-            font-weight: 700;
-            font-family: monospace;
-        }
-
-        .version-new {
-            color: var(--success);
-        }
-
-        .changelog-section h3 {
-            margin: 0 0 var(--spacing-md) 0;
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .changelog-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-md);
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.875rem;
-            line-height: 1.6;
-            white-space: pre-wrap;
-        }
-
-        .progress-step {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--spacing-md);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .step-icon {
-            font-size: 2rem;
-            flex-shrink: 0;
-        }
-
-        .step-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .step-details {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .progress-bar-container {
-            height: 8px;
-            background: var(--bg-hover);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
-            width: 0%;
-            transition: width 0.5s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-            .progress-bar::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient( 90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100% );
-                animation: shimmer 2s infinite;
-            }
-
-        @keyframes shimmer {
-            0% {
-                transform: translateX(-100%);
-            }
-
-            100% {
-                transform: translateX(100%);
-            }
-        }
-
-        .idle-status {
-            background: var(--bg-hover);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .idle-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-md);
-        }
-
-        .idle-stat {
-            text-align: center;
-        }
-
-        .idle-number {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .idle-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .bot-details {
-            margin-top: var(--spacing-md);
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
-
-        .bot-detail-item {
-            padding: var(--spacing-xs);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .update-log {
-            max-height: 200px;
-            overflow-y: auto;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-md);
-            font-family: monospace;
-            font-size: 0.8rem;
-            line-height: 1.4;
-        }
-
-        .log-entry {
-            padding: var(--spacing-xs) 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-            .log-entry:last-child {
-                border-bottom: none;
-            }
-
-        .log-time {
-            color: var(--text-secondary);
-            margin-right: var(--spacing-sm);
-        }
-
-        .log-success {
-            color: var(--success);
-        }
-
-        .log-error {
-            color: var(--danger);
-        }
-
-        .log-warning {
-            color: var(--warning);
-        }
-
-        .progress-bar.indeterminate {
-            animation: indeterminate 2s linear infinite;
-            background: linear-gradient( 90deg, transparent 0%, var(--accent) 50%, transparent 100% );
-        }
-
-        @keyframes indeterminate {
-            0% {
-                transform: translateX(-100%);
-            }
-
-            100% {
-                transform: translateX(100%);
-            }
-        }
-
-        .reconnect-status {
-            background: var(--bg-hover);
-            border: 2px solid var(--warning);
-            border-radius: var(--border-radius-sm);
-            padding: var(--spacing-lg);
-            margin-top: var(--spacing-lg);
-            text-align: center;
-            animation: pulse-border 2s infinite;
-        }
-
-        @keyframes pulse-border {
-            0%, 100% {
-                border-color: var(--warning);
-            }
-
-            50% {
-                border-color: var(--accent);
-            }
-        }
-
-        .reconnect-icon {
-            font-size: 3rem;
-            margin-bottom: var(--spacing-md);
-            animation: spin 2s linear infinite;
-        }
-
-        .reconnect-text {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: var(--spacing-sm);
-            color: var(--warning);
-        }
-
-        .reconnect-hint {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        @media (max-width: 1024px) {
-            .instances-grid {
-                grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            :root {
-                --spacing-lg: 1rem;
-                --spacing-xl: 1.5rem;
-            }
-
-            .header {
-                padding: var(--spacing-md);
-            }
-
-            .header-content {
-                flex-wrap: wrap;
-            }
-
-            .refresh-status {
-                order: 3;
-                width: 100%;
-                justify-content: center;
-                margin-top: var(--spacing-sm);
-            }
-
-            .main {
-                padding: var(--spacing-md);
-            }
-
-            .instances-grid {
-                grid-template-columns: 1fr;
-                gap: var(--spacing-md);
-            }
-
-            .control-buttons {
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: var(--spacing-xs);
-            }
-
-            .instance-info {
-                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-                gap: var(--spacing-sm);
-            }
-
-            .instance-header {
-                padding: var(--spacing-md);
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--spacing-sm);
-            }
-
-            .instance-title {
-                width: 100%;
-            }
-
-            .bot-status-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--spacing-xs);
-            }
-
-                .bot-status-item .bot-name {
-                    width: 100%;
-                }
-
-            .toast {
-                bottom: 0;
-                right: 0;
-                left: 0;
-                max-width: none;
-                transform: translateY(100%);
-                border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-                margin: 0;
-            }
-
-                .toast.show {
-                    transform: translateY(0);
-                }
-
-            .action-menu {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                top: auto;
-                border-radius: var(--border-radius) var(--border-radius) 0 0;
-                max-height: 70vh;
-                overflow-y: auto;
-            }
-
-            .restart-schedule-controls {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: var(--spacing-md);
-            }
-
-            .schedule-status {
-                width: 100%;
-                text-align: center;
-            }
-
-            .modal-content {
-                max-height: 100vh;
-                margin: 0;
-                border-radius: 0;
-            }
-
-            .update-info {
-                grid-template-columns: 1fr;
-            }
-
-            .idle-grid {
-                grid-template-columns: 1fr;
-                gap: var(--spacing-md);
-            }
-
-            .idle-number {
-                font-size: 1.5rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .control-buttons {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .btn {
-                font-size: 0.75rem;
-                padding: var(--spacing-sm);
-            }
-
-            .global-controls {
-                padding: var(--spacing-md);
-            }
-
-            .instance-body {
-                padding: var(--spacing-md);
-            }
-
-            .logo h1 {
-                font-size: 1.1rem;
-            }
-        }
-
-        @media (hover: none) and (pointer: coarse) {
-            .btn:hover {
-                transform: none;
-                box-shadow: none;
-            }
-
-            .instance-card:hover {
-                transform: none;
-                box-shadow: none;
-            }
-
-            .action-menu-button:hover {
-                transform: none;
-            }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="BotControlPanel.css?v=2.0.0">
 </head>
 <body>
-    <div class="app">
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <h1>PokeBot Control Center</h1>
-                    <div class="status-indicator"></div>
-                </div>
-                <div class="refresh-status">
-                    <span class="refresh-indicator" id="refresh-indicator" title="Auto-refresh active"></span>
-                    <button class="btn" onclick="manualRefresh()" title="Refresh now">🔄 Refresh</button>
+    <div class="app" id="app">
+        <header class="header" role="banner">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo-section">
+                        <div class="pokeball-logo" aria-hidden="true">
+                            <div class="pokeball-top"></div>
+                            <div class="pokeball-center">
+                                <div class="pokeball-button"></div>
+                            </div>
+                            <div class="pokeball-bottom"></div>
+                        </div>
+                        <h1 class="main-title">
+                            <span class="title-prefix">Poké</span>
+                            <span class="title-main">Bot</span>
+                            <span class="title-suffix">Control Center</span>
+                        </h1>
+                    </div>
+                    <nav class="header-controls" role="navigation" aria-label="Main controls">
+                        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light mode">
+                            <svg class="theme-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="5"></circle>
+                                <line x1="12" y1="1" x2="12" y2="3"></line>
+                                <line x1="12" y1="21" x2="12" y2="23"></line>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                                <line x1="1" y1="12" x2="3" y2="12"></line>
+                                <line x1="21" y1="12" x2="23" y2="12"></line>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                            </svg>
+                            <svg class="theme-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                            </svg>
+                        </button>
+                        <button class="btn btn-refresh" id="refresh-button" aria-label="Refresh data">
+                            <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            <span>Refresh</span>
+                        </button>
+                        <div class="refresh-status" role="status" aria-live="polite">
+                            <span class="refresh-indicator" id="refresh-indicator" title="Auto-refresh active"></span>
+                            <span class="refresh-text">Auto</span>
+                        </div>
+                    </nav>
                 </div>
             </div>
         </header>
 
-        <main class="main">
-            <div class="scheduled-restart-section">
-                <div class="scheduled-restart-header">
-                    <h2>Scheduled Restart</h2>
+        <main class="container" role="main">
+            <section class="dashboard-overview" aria-labelledby="dashboard-title">
+                <h2 id="dashboard-title" class="visually-hidden">Dashboard Overview</h2>
+                <div class="overview-grid" id="overview-grid" role="region" aria-label="Bot statistics">
+                    <article class="stat-card stat-card-instances">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon stat-icon-robot">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
+                                    <circle cx="12" cy="5" r="2"></circle>
+                                    <path d="M12 7v4"></path>
+                                    <line x1="8" y1="16" x2="8" y2="16"></line>
+                                    <line x1="16" y1="16" x2="16" y2="16"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="total-instances">0</h3>
+                            <p class="stat-label">Total Instances</p>
+                        </div>
+                        <div class="stat-background" aria-hidden="true"></div>
+                    </article>
+                    <article class="stat-card stat-card-active">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon stat-icon-active">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="active-bots">0</h3>
+                            <p class="stat-label">Active Bots</p>
+                        </div>
+                        <div class="stat-background" aria-hidden="true"></div>
+                    </article>
+                    <article class="stat-card stat-card-idle">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon stat-icon-pause">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="idle-bots">0</h3>
+                            <p class="stat-label">Idle Bots</p>
+                        </div>
+                        <div class="stat-background" aria-hidden="true"></div>
+                    </article>
+                    <article class="stat-card stat-card-online">
+                        <div class="stat-icon-wrapper">
+                            <div class="stat-icon stat-icon-signal">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="online-instances">0</h3>
+                            <p class="stat-label">Online</p>
+                        </div>
+                        <div class="stat-background" aria-hidden="true"></div>
+                    </article>
                 </div>
-                <div class="restart-schedule-controls">
-                    <div class="schedule-toggle">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="schedule-restart-toggle" onchange="toggleScheduledRestart()">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <label for="schedule-restart-toggle">Enable daily restart</label>
-                    </div>
-                    <div class="time-input-group">
-                        <label for="restart-time">Time:</label>
-                        <input type="time" id="restart-time" class="time-input" value="00:00" onchange="updateRestartSchedule()">
-                    </div>
-                    <button class="btn btn-warning" onclick="restartAllInstances()">🔄 Restart Now</button>
-                </div>
-                <div id="schedule-status" class="schedule-status" style="display: none;">
-                    <span>⏰</span>
-                    <span>Next restart scheduled for: <span id="next-restart-time" class="next-restart-time">-</span></span>
-                </div>
-            </div>
 
-            <div class="global-controls">
-                <h2>Global Controls - All Instances</h2>
-                <div class="control-buttons">
-                    <button class="btn btn-success" onclick="sendGlobalCommand('start')">▶️ Start All</button>
-                    <button class="btn btn-danger" onclick="sendGlobalCommand('stop')">⏹️ Stop All</button>
-                    <button class="btn btn-warning" onclick="sendGlobalCommand('idle')">⏸️ Idle All</button>
-                    <button class="btn" onclick="sendGlobalCommand('resume')">⏯️ Resume All</button>
-                    <button class="btn" onclick="sendGlobalCommand('restart')">🔄 Restart All</button>
-                    <button class="btn" onclick="sendGlobalCommand('reboot')">🔌 Reboot All</button>
-                    <button class="btn" onclick="sendGlobalCommand('screenon')">💡 Screen On</button>
-                    <button class="btn" onclick="sendGlobalCommand('screenoff')">🌙 Screen Off</button>
-                    <button class="btn btn-primary" onclick="updateAllInstances()">⬆️ Update All</button>
+                <div class="control-buttons" role="toolbar" aria-label="Global bot controls">
+                    <button class="btn btn-action btn-start" data-global-action="start" aria-label="Start all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Start All</span>
+                    </button>
+                    <button class="btn btn-action btn-stop" data-global-action="stop" aria-label="Stop all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="6" width="12" height="12"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Stop All</span>
+                    </button>
+                    <button class="btn btn-action btn-idle" data-global-action="idle" aria-label="Idle all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="4" width="4" height="16"/>
+                                <rect x="14" y="4" width="4" height="16"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Idle All</span>
+                    </button>
+                    <button class="btn btn-action btn-resume" data-global-action="resume" aria-label="Resume all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                                <rect x="6" y="6" width="3" height="12" opacity="0.5"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Resume All</span>
+                    </button>
+                    <button class="btn btn-action btn-screen-on" data-global-action="screenon" aria-label="Turn on all screens">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="5"/>
+                                <line x1="12" y1="1" x2="12" y2="3"/>
+                                <line x1="12" y1="21" x2="12" y2="23"/>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                <line x1="1" y1="12" x2="3" y2="12"/>
+                                <line x1="21" y1="12" x2="23" y2="12"/>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Screen On</span>
+                    </button>
+                    <button class="btn btn-action btn-screen-off" data-global-action="screenoff" aria-label="Turn off all screens">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Screen Off</span>
+                    </button>
+                    <button class="btn btn-action btn-update" data-global-action="update" aria-label="Update all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="16 3 21 3 21 8"/>
+                                <line x1="4" y1="20" x2="21" y2="3"/>
+                                <polyline points="21 16 21 21 16 21"/>
+                                <line x1="15" y1="15" x2="21" y2="21"/>
+                                <line x1="4" y1="4" x2="9" y2="9"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Update All</span>
+                    </button>
+                    <button class="btn btn-action btn-restart" data-global-action="restart" aria-label="Restart all bots">
+                        <span class="btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                        </span>
+                        <span class="btn-text">Restart All</span>
+                    </button>
                 </div>
-            </div>
+            </section>
 
-            <div id="instances-container" class="instances-grid">
-                <div class="loading"><div class="spinner"></div></div>
-            </div>
+            <section class="schedule-section" aria-labelledby="schedule-title">
+                <div class="schedule-card">
+                    <div class="schedule-header">
+                        <h3 id="schedule-title" class="schedule-title">
+                            <svg class="schedule-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                            <span>Scheduled Restart</span>
+                        </h3>
+                        <div class="schedule-controls">
+                            <label class="toggle-switch" for="schedule-restart-toggle">
+                                <input type="checkbox" id="schedule-restart-toggle" aria-label="Enable scheduled restart">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label-on">ON</span>
+                                <span class="toggle-label-off">OFF</span>
+                            </label>
+                            <input type="time" id="restart-time" class="time-input" value="00:00" disabled aria-label="Restart time">
+                        </div>
+                    </div>
+                    <div class="schedule-status" id="schedule-status" style="display: none;" role="status" aria-live="polite">
+                        <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <span>Next restart: <strong id="next-restart-time">-</strong></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="instances-section" aria-labelledby="instances-title">
+                <h2 id="instances-title" class="section-title">
+                    <span class="section-title-text">Bot Instances</span>
+                    <span class="section-title-count" id="instance-count">(0)</span>
+                </h2>
+                <div class="instances-container" id="instances-container" role="region" aria-label="Bot instances list">
+                    <div class="skeleton-card" aria-hidden="true">
+                        <div class="skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-card" aria-hidden="true">
+                        <div class="skeleton-shimmer"></div>
+                    </div>
+                    <div class="skeleton-card" aria-hidden="true">
+                        <div class="skeleton-shimmer"></div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
-    <div id="toast" class="toast">
-        <span class="toast-icon"></span>
-        <div class="toast-content">
-            <div class="toast-title"></div>
-            <div class="toast-message"></div>
-        </div>
-    </div>
-
-    <!-- Update Confirmation Modal -->
-    <div id="update-modal" class="modal">
+    <div class="modal" id="update-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Update Available</h2>
-                <button class="modal-close" onclick="closeUpdateModal()">&times;</button>
+                <h2>System Update</h2>
+                <button class="modal-close" id="close-update-modal">×</button>
             </div>
             <div class="modal-body">
-                <div class="update-info">
-                    <div class="version-info">
-                        <span class="version-label">Current Version:</span>
-                        <span id="current-version" class="version-value">-</span>
+                <div class="update-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="version-card">
+                        <div class="version-label">Current Version</div>
+                        <div class="version-value" id="current-version">Loading...</div>
                     </div>
-                    <div class="version-info">
-                        <span class="version-label">New Version:</span>
-                        <span id="new-version" class="version-value version-new">-</span>
+                    <div class="version-card">
+                        <div class="version-label">Repository Version</div>
+                        <div class="version-value" id="new-version" style="color: var(--status-online);">Loading...</div>
                     </div>
                 </div>
+
+                <div style="background: var(--glass-highlight); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+                    <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">
+                        ⚡ All instances will be updated to the latest version from the repository, regardless of their current version.
+                    </p>
+                </div>
+
                 <div class="changelog-section">
-                    <h3>Changelog</h3>
-                    <div id="changelog-content" class="changelog-content">
-                        <div class="spinner"></div>
+                    <h3 style="margin-bottom: 1rem;">📝 What's New</h3>
+                    <div class="changelog-content" id="changelog-content" style="background: var(--glass-highlight); padding: 1rem; border-radius: var(--radius-md); max-height: 300px; overflow-y: auto;">
+                        Loading changelog...
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn" onclick="closeUpdateModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="confirmUpdate()">
-                    <span>⬆️ Update All Instances</span>
+                <button class="btn btn-secondary" id="cancel-update">Cancel</button>
+                <button class="btn btn-primary" id="confirm-update">
+                    📦 Update Now
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Progress Modal (Update/Restart) -->
-    <div id="progress-modal" class="modal">
-        <div class="modal-content progress-modal-content">
+    <div class="modal" id="progress-modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2 id="progress-modal-title">Update in Progress</h2>
             </div>
             <div class="modal-body">
-                <div class="progress-step">
-                    <div class="step-icon">⏳</div>
-                    <div class="step-info">
-                        <div id="progress-status" class="step-title">Preparing...</div>
-                        <div id="progress-details" class="step-details"></div>
+                <div class="progress-header">
+                    <div class="step-icon" id="step-icon">⏳</div>
+                    <div class="step-details">
+                        <div class="step-status" id="progress-status">Initializing...</div>
+                        <div class="step-description" id="progress-details">Starting update process</div>
                     </div>
                 </div>
 
-                <div class="progress-bar-container">
-                    <div id="progress-bar" class="progress-bar"></div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar" style="width: 0%;"></div>
                 </div>
 
-                <div id="idle-status" class="idle-status" style="display: none;">
-                    <div class="idle-grid">
-                        <div class="idle-stat">
-                            <div class="idle-number" id="bots-idled">0</div>
-                            <div class="idle-label">Bots Idled</div>
+                <div class="update-timeline" id="update-timeline"></div>
+
+                <div class="idle-status" id="idle-status" style="display: none;">
+                    <div class="idle-progress">
+                        <div class="idle-count">
+                            <strong id="bots-idled">0</strong> / <strong id="bots-total">0</strong> bots idled
                         </div>
-                        <div class="idle-stat">
-                            <div class="idle-number" id="bots-remaining">0</div>
-                            <div class="idle-label">Remaining</div>
-                        </div>
-                        <div class="idle-stat">
-                            <div class="idle-number" id="timeout-countdown">300</div>
-                            <div class="idle-label">Timeout (s)</div>
+                        <div class="timeout-warning">
+                            ⏱️ Timeout in <strong id="timeout-countdown">300</strong>s
                         </div>
                     </div>
-                    <div id="bot-details" class="bot-details"></div>
                 </div>
 
-                <div id="update-log" class="update-log"></div>
-            </div>
-            <div class="modal-footer">
-                <div id="force-update-info" style="display: none; color: var(--warning); margin-right: auto; font-size: 0.875rem;">
+                <div class="info-message" id="force-update-info" style="display: none; background: var(--glass-highlight); padding: 1rem; border-radius: var(--radius-md); margin-top: 1rem;">
                     ⚡ Update will be forced automatically after timeout
+                </div>
+
+                <div class="update-log" id="update-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <span class="toast-icon">ℹ️</span>
+        <div class="toast-content">
+            <div class="toast-title">Title</div>
+            <div class="toast-message">Message</div>
+        </div>
+    </div>
+
+    <div class="modal" id="remote-control-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>🎮 Remote Control</h2>
+                <button class="modal-close" id="close-remote-control">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="remote-control-container">
+                    <div class="bot-selector">
+                        <label for="remote-bot-select">Select Bot/Switch:</label>
+                        <select id="remote-bot-select" class="bot-select">
+                            <option value="">Loading bots...</option>
+                        </select>
+                        <span id="bot-connection-info" class="connection-info"></span>
+                    </div>
+                    
+                    <div class="controller-section">
+                        <div class="left-controller">
+                            <button class="system-btn btn-minus" data-button="MINUS">−</button>
+                            <button class="control-btn lstick-btn" data-button="LSTICK" title="Left Stick - Click and drag to move">LS</button>
+                            <div class="dpad">
+                                <button class="dpad-btn dpad-up" data-button="UP">▲</button>
+                                <button class="dpad-btn dpad-left" data-button="LEFT">◄</button>
+                                <button class="dpad-btn dpad-center"></button>
+                                <button class="dpad-btn dpad-right" data-button="RIGHT">►</button>
+                                <button class="dpad-btn dpad-down" data-button="DOWN">▼</button>
+                            </div>
+                            <button class="system-btn btn-capture" data-button="CAPTURE">□</button>
+                        </div>
+                        
+                        <div class="right-controller">
+                            <button class="system-btn btn-plus" data-button="PLUS">+</button>
+                            <div class="action-buttons">
+                                <button class="control-btn action-btn btn-x" data-button="X">X</button>
+                                <button class="control-btn action-btn btn-y" data-button="Y">Y</button>
+                                <button class="control-btn action-btn btn-a" data-button="A">A</button>
+                                <button class="control-btn action-btn btn-b" data-button="B">B</button>
+                            </div>
+                            <button class="control-btn rstick-btn" data-button="RSTICK" title="Right Stick - Click and drag to move">RS</button>
+                            <button class="system-btn btn-home" data-button="HOME">⌂</button>
+                        </div>
+                    </div>
+                    
+                    <div class="shoulder-buttons">
+                        <div class="shoulder-left">
+                            <button class="control-btn shoulder-btn" data-button="L">L</button>
+                            <button class="control-btn shoulder-btn" data-button="ZL">ZL</button>
+                        </div>
+                        <div class="shoulder-right">
+                            <button class="control-btn shoulder-btn" data-button="R">R</button>
+                            <button class="control-btn shoulder-btn" data-button="ZR">ZR</button>
+                        </div>
+                    </div>
+                    
+                    <div class="macro-section">
+                        <h3>Macro Commands</h3>
+                        <div class="macro-controls">
+                            <textarea id="macro-input" class="macro-input" placeholder="Enter macro commands (e.g., A B X Y d100 UP DOWN)"></textarea>
+                            <button id="execute-macro" type="button" aria-label="Execute macro commands">Execute Macro</button>
+                        </div>
+                        <div class="macro-presets">
+                            <button class="macro-preset" data-macro="A">Confirm</button>
+                            <button class="macro-preset" data-macro="B B B">Back x3</button>
+                            <button class="macro-preset" data-macro="HOME">Home</button>
+                            <button class="macro-preset" data-macro="A d500 A d500 A">Spam A</button>
+                            <button class="macro-preset" data-macro="X d200 A d200 A">Save Game</button>
+                            <button class="macro-preset" data-macro="UP UP UP UP UP">Up x5</button>
+                            <button class="macro-preset" data-macro="A d1000 A d1000 A d1000 A">Dialog Skip</button>
+                            <button class="macro-preset" data-macro="L d200 A d500 A">Trade Accept</button>
+                        </div>
+                    </div>
+                    
+                    <div class="remote-settings">
+                        <label class="toggle-switch" for="remote-live-mode">
+                            <input type="checkbox" id="remote-live-mode" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Live Mode (instant button press)</span>
+                    </div>
+                    
+                    <div class="remote-status">
+                        <span id="remote-status-text">Ready</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <div class="modal" id="actions-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚡ Actions</h2>
+                <button class="modal-close" id="close-actions-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="actions-modal-content" id="actions-modal-content">
+                    <button class="action-modal-item success" data-action="start">
+                        ▶️ Start
+                    </button>
+                    <button class="action-modal-item danger" data-action="stop">
+                        ⏹️ Stop
+                    </button>
+                    <button class="action-modal-item warning" data-action="idle">
+                        ⏸️ Idle
+                    </button>
+                    <button class="action-modal-item" data-action="resume">
+                        ⏯️ Resume
+                    </button>
+                    <div class="action-modal-divider"></div>
+                    <button class="action-modal-item" data-action="restart">
+                        🔄 Restart
+                    </button>
+                    <button class="action-modal-item danger" data-action="reboot">
+                        🔌 Reboot
+                    </button>
+                    <div class="action-modal-divider"></div>
+                    <button class="action-modal-item" data-action="screenon">
+                        💡 Screen On
+                    </button>
+                    <button class="action-modal-item" data-action="screenoff">
+                        🌙 Screen Off
+                    </button>
+                    <div class="action-modal-divider"></div>
+                    <button class="action-modal-item" data-action="logs">
+                        📋 View Logs
+                    </button>
+                    <div class="action-modal-divider"></div>
+                    <button class="action-modal-item" data-action="remote">
+                        🎮 Remote Control
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="log-viewer-modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>📋 Live Log Viewer</h2>
+                <button class="modal-close" id="close-log-viewer">×</button>
+            </div>
+            <div class="modal-body log-viewer-body">
+                <div class="log-controls">
+                    <div class="log-filters">
+                        <input type="text" id="log-search" class="log-search" placeholder="🔍 Search logs...">
+                        <select id="log-instance-filter" class="log-filter-select">
+                            <option value="">All Sources</option>
+                        </select>
+                        <select id="log-level-filter" class="log-filter-select">
+                            <option value="">All Levels</option>
+                            <option value="info">Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                            <option value="debug">Debug</option>
+                        </select>
+                    </div>
+                    <div class="log-actions">
+                        <label class="toggle-switch" for="log-autoscroll">
+                            <input type="checkbox" id="log-autoscroll" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-label">Auto-scroll</span>
+                        <button class="btn btn-sm" id="log-pause-btn">
+                            ⏸️ Pause
+                        </button>
+                        <button class="btn btn-sm btn-danger" id="log-clear-btn">
+                            🗑️ Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="log-stats">
+                    <div class="log-stat">
+                        <span class="log-stat-label">Total:</span>
+                        <span class="log-stat-value" id="log-total">0</span>
+                    </div>
+                    <div class="log-stat">
+                        <span class="log-stat-label">Filtered:</span>
+                        <span class="log-stat-value" id="log-filtered">0</span>
+                    </div>
+                    <div class="log-stat">
+                        <span class="log-stat-label">Status:</span>
+                        <span class="log-stat-value" id="log-status">
+                            <span class="status-indicator status-disconnected"></span> Disconnected
+                        </span>
+                    </div>
+                </div>
+
+                <div class="log-container" id="log-container">
+                    <div class="log-virtual-scroll" id="log-virtual-scroll">
+                        <div class="log-placeholder">
+                            <div class="log-placeholder-icon">📋</div>
+                            <div class="log-placeholder-text">Waiting for logs...</div>
+                            <div class="log-placeholder-hint">Logs will appear here once connected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="BotControlPanel.js?v=2.0.0" type="module"></script>
     <script>
-        const API_BASE = '/api/bot';
-        let instances = [];
-        let refreshInterval;
-        let activeToasts = [];
-        let restartScheduleInterval;
-        let isInteracting = false;
-        let refreshPaused = false;
-        let lastRefreshTime = Date.now();
-
-        // State objects for updates and restarts
-        let updateState = {
-            id: null,
-            interval: null,
-            type: null
-        };
-
-        let restartState = {
-            startTime: null,
-            timeout: 300,
-            idleCheckInterval: null,
-            countdownInterval: null
-        };
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check for ongoing operations BEFORE anything else
-            checkForOngoingOperations().then(() => {
-                // Only refresh instances if not reconnecting to an update
-                if (!updateState.id) {
-                    refreshInstances();
-                }
-            });
-
-            startAutoRefresh();
-            startConnectionMonitor();
-            loadRestartSchedule();
-            checkRestartSchedule();
-
-            // Event listeners
-            document.addEventListener('click', (e) => {
-                if (e.target && e.target.nodeType === 1 && typeof e.target.closest === 'function') {
-                    if (!e.target.closest('.instance-controls')) {
-                        document.querySelectorAll('.action-menu.show').forEach(menu => {
-                            menu.classList.remove('show');
-                        });
-                    }
-                } else {
-                    document.querySelectorAll('.action-menu.show').forEach(menu => {
-                        menu.classList.remove('show');
-                    });
-                }
-            });
-
-            // Track mouse interaction
-            document.addEventListener('mouseenter', (e) => {
-                if (e.target && e.target.nodeType === 1 && typeof e.target.closest === 'function') {
-                    if (e.target.closest('.instance-card')) {
-                        isInteracting = true;
-                    }
-                }
-            }, true);
-
-            document.addEventListener('mouseleave', (e) => {
-                if (e.target && e.target.nodeType === 1 && typeof e.target.closest === 'function') {
-                    if (e.target.closest('.instance-card')) {
-                        isInteracting = false;
-                    }
-                }
-            }, true);
-
-            // Track touch interaction
-            document.addEventListener('touchstart', (e) => {
-                if (e.target && e.target.nodeType === 1 && typeof e.target.closest === 'function') {
-                    if (e.target.closest('.instance-card')) {
-                        isInteracting = true;
-                    }
-                }
-            });
-
-            document.addEventListener('touchend', () => {
-                setTimeout(() => {
-                    isInteracting = false;
-                }, 500);
-            });
-        });
-
-        window.addEventListener('beforeunload', () => {
-            if (refreshInterval) clearInterval(refreshInterval);
-            if (restartScheduleInterval) clearInterval(restartScheduleInterval);
-            if (updateState.interval) clearInterval(updateState.interval);
-            if (restartState.idleCheckInterval) clearInterval(restartState.idleCheckInterval);
-            if (restartState.countdownInterval) clearInterval(restartState.countdownInterval);
-        });
-
-        // New function to check backend for active operations
-        async function checkForOngoingOperations() {
-            try {
-                // First, check if any updates are in progress
-                const response = await fetch(`${API_BASE}/update/active`);
-                if (!response.ok) return;
-
-                const activeUpdates = await response.json();
-                if (!activeUpdates || activeUpdates.length === 0) return;
-
-                // Get the most recent non-complete update
-                const activeUpdate = activeUpdates.find(u => !u.IsComplete);
-                if (!activeUpdate) return;
-
-                console.log('Found active update:', activeUpdate);
-
-                // Determine type from stage
-                updateState.id = activeUpdate.Id;
-                updateState.type = activeUpdate.Stage.includes('restart') ? 'restart' : 'update';
-
-                // Set the start time from the active update
-                if (activeUpdate.StartTime) {
-                    updateState.startTime = new Date(activeUpdate.StartTime).getTime();
-                } else {
-                    updateState.startTime = Date.now();
-                }
-
-                // Show progress modal with current state
-                showModal('progress-modal');
-                document.getElementById('progress-modal-title').textContent =
-                    updateState.type === 'restart' ? 'Restart in Progress' : 'Update in Progress';
-
-                // Set progress immediately
-                updateProgress(
-                    activeUpdate.Stage === 'checking' ? 'Checking for updates' :
-                        activeUpdate.Stage === 'scanning' ? 'Scanning instances' :
-                            activeUpdate.Stage === 'idling' ? 'Preparing instances' :
-                                activeUpdate.Stage === 'waiting_idle' ? 'Waiting for bots to idle' :
-                                    activeUpdate.Stage === 'updating' ? 'Updating instances' :
-                                        activeUpdate.Stage === 'updating_master' ? 'Updating master instance' :
-                                            activeUpdate.Stage === 'complete' ? 'Update complete!' : 'Processing...',
-                    activeUpdate.Message,
-                    activeUpdate.Progress
-                );
-
-                // Add log entry about reconnection
-                addLogEntry('Reconnected to ongoing update process', 'info');
-
-                // Show idle status if in waiting phase
-                if (activeUpdate.Stage === 'waiting_idle') {
-                    document.getElementById('idle-status').style.display = 'block';
-                    document.getElementById('force-update-info').style.display = 'block';
-                }
-
-                // Start monitoring
-                updateState.interval = setInterval(() => {
-                    checkUpdateStatus();
-                }, 2000);
-
-                // Immediately check status
-                checkUpdateStatus();
-
-                // Pause auto-refresh while update is ongoing
-                refreshPaused = true;
-
-            } catch (error) {
-                console.error('Error checking for active updates:', error);
-            }
-        }
-
-        // Auto refresh
-        function startAutoRefresh() {
-            refreshInterval = setInterval(() => {
-                const hasOpenMenu = document.querySelector('.action-menu.show') !== null;
-                const timeSinceLastRefresh = Date.now() - lastRefreshTime;
-                const indicator = document.getElementById('refresh-indicator');
-
-                if (hasOpenMenu || isInteracting || refreshPaused) {
-                    indicator.classList.add('paused');
-                    indicator.title = 'Auto-refresh paused';
-                } else {
-                    indicator.classList.remove('paused');
-                    indicator.title = 'Auto-refresh active';
-                }
-
-                if (!hasOpenMenu && !isInteracting && !refreshPaused && timeSinceLastRefresh >= 5000) {
-                    refreshInstances();
-                }
-            }, 1000);
-        }
-
-        async function refreshInstances(isManual = false) {
-            try {
-                if (!isManual && document.querySelector('.action-menu.show')) {
-                    return;
-                }
-
-                lastRefreshTime = Date.now();
-                const response = await fetch(`${API_BASE}/instances`);
-                if (!response.ok) throw new Error('Failed to fetch instances');
-
-                const data = await response.json();
-                instances = data.Instances;
-
-                if (!document.querySelector('.action-menu.show') || isManual) {
-                    renderInstances();
-                }
-            } catch (error) {
-                console.error('Error fetching instances:', error);
-                showError('Failed to load bot instances. Make sure the bot is running.');
-            }
-        }
-
-        function manualRefresh() {
-            document.querySelectorAll('.action-menu.show').forEach(menu => {
-                menu.classList.remove('show');
-            });
-            refreshInstances(true);
-            showToast('info', 'Refreshed', 'Bot instances refreshed');
-        }
-
-        // Instance rendering
-        function renderInstances() {
-            const container = document.getElementById('instances-container');
-
-            if (instances.length === 0) {
-                container.innerHTML = '<div class="error-message">⚠️ No bot instances found. Make sure at least one PokeBot is running.</div>';
-                return;
-            }
-
-            container.innerHTML = instances.map(instance => {
-                const isOnline = instance.IsOnline || false;
-                const statusClass = isOnline ? 'online' : 'offline';
-                const statusIndicator = isOnline ?
-                    '<span class="online-indicator"></span>Connected' :
-                    '<span class="offline-indicator"></span>Disconnected';
-
-                let instanceStatus = 'stopped';
-                let instanceStatusText = 'Stopped';
-                if (instance.BotStatuses && instance.BotStatuses.length > 0) {
-                    const runningCount = instance.BotStatuses.filter(b =>
-                        b.Status.toUpperCase().includes('RUNNING') ||
-                        b.Status.toUpperCase().includes('ACTIVE') ||
-                        (!b.Status.toUpperCase().includes('IDLE') &&
-                            !b.Status.toUpperCase().includes('STOPPED') &&
-                            !b.Status.toUpperCase().includes('ERROR'))
-                    ).length;
-                    const idleCount = instance.BotStatuses.filter(b =>
-                        b.Status.toUpperCase().includes('IDLE')
-                    ).length;
-
-                    if (runningCount === instance.BotStatuses.length) {
-                        instanceStatus = 'running';
-                        instanceStatusText = 'All Running';
-                    } else if (idleCount === instance.BotStatuses.length) {
-                        instanceStatus = 'idle';
-                        instanceStatusText = 'All Idle';
-                    } else if (runningCount > 0) {
-                        instanceStatus = 'mixed';
-                        instanceStatusText = `${runningCount}/${instance.BotStatuses.length} Running`;
-                    } else if (idleCount > 0) {
-                        instanceStatus = 'idle';
-                        instanceStatusText = 'Idle';
-                    }
-                }
-
-                return `
-                                <div class="instance-card ${statusClass}" data-port="${instance.Port}">
-                                    <div class="instance-header">
-                                        <h3 class="instance-title">
-                                            ${instance.Name}
-                                            <span class="instance-status-badge ${instanceStatus}">${instanceStatusText}</span>
-                                        </h3>
-                                        <span class="instance-badge">Port ${instance.Port}</span>
-                                    </div>
-                                    <div class="instance-body">
-                                        <div class="instance-info">
-                                            <div class="info-item">
-                                                <span class="info-label">Version</span>
-                                                <span class="info-value">${instance.Version}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-label">Mode</span>
-                                                <span class="info-value">${instance.Mode}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-label">Process ID</span>
-                                                <span class="info-value">${instance.ProcessId}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-label">Connection</span>
-                                                <span class="info-value">${statusIndicator}</span>
-                                            </div>
-                                        </div>
-
-                                        ${instance.BotStatuses && instance.BotStatuses.length > 0 ? `
-                                        <div class="bot-status">
-                                            <div class="info-label" style="margin-bottom: 0.5rem;">BOTS (${instance.BotStatuses.length})</div>
-                                            ${instance.BotStatuses.map((bot, index) => `
-                                                <div class="bot-status-item">
-                                                    <span class="bot-name">
-                                                        <span style="color: ${getStatusColor(bot.Status)};">●</span>
-                                                        <span>${bot.Name || `Bot ${index + 1}`}</span>
-                                                    </span>
-                                                    <span class="bot-state ${getStatusClass(bot.Status)}">${bot.Status}</span>
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                        ` : instance.BotCount > 0 ? `
-                                        <div class="bot-status">
-                                            <div class="info-label">BOTS</div>
-                                            <div class="bot-status-item">
-                                                <span class="bot-name">Bot Count: ${instance.BotCount}</span>
-                                                <span class="bot-state">Status Unknown</span>
-                                            </div>
-                                        </div>
-                                        ` : ''}
-
-                                        <div class="instance-controls">
-                                            <button class="action-menu-button" onclick="toggleActionMenu(event, ${instance.Port})" ${!isOnline ? 'disabled' : ''}>
-                                                ⚡ Actions <span style="font-size: 0.75rem;">▼</span>
-                                            </button>
-                                            <div class="action-menu" id="action-menu-${instance.Port}">
-                                                <button class="action-menu-item success" onclick="sendInstanceCommand(${instance.Port}, 'start')">
-                                                    ▶️ Start
-                                                </button>
-                                                <button class="action-menu-item danger" onclick="sendInstanceCommand(${instance.Port}, 'stop')">
-                                                    ⏹️ Stop
-                                                </button>
-                                                <button class="action-menu-item warning" onclick="sendInstanceCommand(${instance.Port}, 'idle')">
-                                                    ⏸️ Idle
-                                                </button>
-                                                <button class="action-menu-item" onclick="sendInstanceCommand(${instance.Port}, 'resume')">
-                                                    ⏯️ Resume
-                                                </button>
-                                                <div class="action-menu-divider"></div>
-                                                <button class="action-menu-item" onclick="sendInstanceCommand(${instance.Port}, 'restart')">
-                                                    🔄 Restart
-                                                </button>
-                                                <button class="action-menu-item danger" onclick="sendInstanceCommand(${instance.Port}, 'reboot')">
-                                                    🔌 Reboot
-                                                </button>
-                                                <div class="action-menu-divider"></div>
-                                                <button class="action-menu-item" onclick="sendInstanceCommand(${instance.Port}, 'screenon')">
-                                                    💡 Screen On
-                                                </button>
-                                                <button class="action-menu-item" onclick="sendInstanceCommand(${instance.Port}, 'screenoff')">
-                                                    🌙 Screen Off
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-            }).join('');
-        }
-
-        function toggleActionMenu(event, port) {
-            event.stopPropagation();
-            const menu = document.getElementById(`action-menu-${port}`);
-            const allMenus = document.querySelectorAll('.action-menu');
-
-            allMenus.forEach(m => {
-                if (m.id !== `action-menu-${port}`) {
-                    m.classList.remove('show');
-                }
-            });
-
-            const wasOpen = menu.classList.contains('show');
-            menu.classList.toggle('show');
-
-            isInteracting = !wasOpen;
-
-            if (wasOpen && !document.querySelector('.action-menu.show')) {
-                isInteracting = false;
-            }
-        }
-
-        // Commands
-        async function sendGlobalCommand(command) {
-            showToast('info', 'Sending Command', `Sending ${command} to all instances...`);
-
-            try {
-                const response = await fetch(`${API_BASE}/command/all`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Command: command })
-                });
-
-                if (!response.ok) throw new Error('Command failed');
-
-                const result = await response.json();
-                const successCount = result.SuccessfulCommands || 0;
-                const totalCount = result.TotalInstances || 0;
-
-                if (successCount === totalCount && totalCount > 0) {
-                    showToast('success', 'Command Sent', `Successfully sent ${command} to all ${totalCount} instances`);
-                } else if (successCount > 0) {
-                    showToast('warning', 'Partial Success', `Command sent to ${successCount} of ${totalCount} instances`);
-                } else {
-                    showToast('error', 'Command Failed', `Failed to send command to any instances`);
-                }
-
-                setTimeout(() => refreshInstances(true), 1000);
-            } catch (error) {
-                console.error('Error sending global command:', error);
-                showToast('error', 'Error', `Failed to send command: ${command}`);
-            }
-        }
-
-        async function sendInstanceCommand(port, command) {
-            document.getElementById(`action-menu-${port}`).classList.remove('show');
-            isInteracting = false;
-
-            showToast('info', 'Sending Command', `Sending ${command} to instance on port ${port}...`);
-
-            try {
-                const response = await fetch(`${API_BASE}/instances/${port}/command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Command: command })
-                });
-
-                if (!response.ok) throw new Error('Command failed');
-
-                const result = await response.json();
-                if (result.Success) {
-                    showToast('success', 'Command Sent', `Successfully sent ${command} to instance on port ${port}`);
-                } else {
-                    showToast('error', 'Command Failed', result.Message || 'Unknown error');
-                }
-
-                setTimeout(() => refreshInstances(true), 1000);
-            } catch (error) {
-                console.error(`Error sending command to port ${port}:`, error);
-                showToast('error', 'Error', `Failed to send command to instance on port ${port}`);
-            }
-        }
-
-        // Update functions
-        async function updateAllInstances() {
-            showModal('update-modal');
-
-            try {
-                const instancesResponse = await fetch(`${API_BASE}/instances`);
-                const instancesData = await instancesResponse.json();
-                const currentVersion = instancesData.Instances?.[0]?.Version || 'Unknown';
-
-                document.getElementById('current-version').textContent = currentVersion;
-                document.getElementById('new-version').textContent = 'Checking...';
-                document.getElementById('changelog-content').innerHTML = '<div class="spinner"></div>';
-
-                const checkResponse = await fetch(`${API_BASE}/update/check`);
-                let updateInfo = { version: 'Unknown', changelog: 'No changelog available' };
-
-                if (checkResponse.ok) {
-                    updateInfo = await checkResponse.json();
-                } else {
-                    updateInfo.version = 'Latest';
-                    updateInfo.changelog = 'Unable to fetch changelog. Update will proceed to latest version.';
-                }
-
-                document.getElementById('new-version').textContent = updateInfo.version;
-                document.getElementById('changelog-content').textContent = updateInfo.changelog;
-
-            } catch (error) {
-                console.error('Error checking updates:', error);
-                document.getElementById('new-version').textContent = 'Latest';
-                document.getElementById('changelog-content').textContent = 'Unable to fetch update information. Click Update to proceed.';
-            }
-        }
-
-        async function confirmUpdate() {
-            closeModal('update-modal');
-            showModal('progress-modal');
-            document.getElementById('progress-modal-title').textContent = 'Update in Progress';
-            document.getElementById('force-update-info').style.display = 'block';
-
-            updateState.type = 'update';
-            updateState.startTime = Date.now();
-            updateProgress('Initializing update process...', 'Starting background update process', 10);
-
-            try {
-                const response = await fetch(`${API_BASE}/update/all`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!response.ok) throw new Error('Failed to start update');
-
-                const result = await response.json();
-                updateState.id = result.Id;
-
-                if (result.Info) {
-                    updateProgress(
-                        'Update started',
-                        result.Info,
-                        20
-                    );
-                    addLogEntry('Update process initiated in background', 'info');
-                }
-
-                // Start monitoring update status
-                updateState.interval = setInterval(() => {
-                    checkUpdateStatus();
-                }, 2000);
-
-                // Pause auto-refresh during update
-                refreshPaused = true;
-
-            } catch (error) {
-                console.error('Error starting update:', error);
-                updateProgress('Update failed', error.message, 0);
-                addLogEntry(`Failed to start update: ${error.message}`, 'error');
-                refreshPaused = false;
-
-                setTimeout(() => {
-                    closeModal('progress-modal');
-                    showToast('error', 'Error', 'Failed to start update process');
-                }, 2000);
-            }
-        }
-
-        async function checkUpdateStatus() {
-            if (!updateState.id) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/update/all`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ updateId: updateState.id })
-                });
-
-                if (!response.ok) {
-                    // Update might be complete or not found
-                    clearInterval(updateState.interval);
-                    updateState.id = null;
-                    updateState.interval = null;
-                    refreshPaused = false;
-
-                    // Try to get final status from active updates endpoint
-                    const activeResponse = await fetch(`${API_BASE}/update/active`);
-                    if (activeResponse.ok) {
-                        const updates = await activeResponse.json();
-                        const ourUpdate = updates.find(u => u.Id === updateState.id);
-                        if (ourUpdate && ourUpdate.IsComplete) {
-                            if (ourUpdate.Success) {
-                                showToast('success', 'Update Complete', 'Update completed while you were away');
-                            } else {
-                                showToast('error', 'Update Failed', 'Update failed while you were away');
-                            }
-                        }
-                    }
-
-                    closeModal('progress-modal');
-                    refreshInstances(true);
-                    return;
-                }
-
-                const status = await response.json();
-
-                // Update UI with current status
-                updateProgress(
-                    status.Stage === 'checking' ? 'Checking for updates' :
-                        status.Stage === 'scanning' ? 'Scanning instances' :
-                            status.Stage === 'idling' ? 'Preparing instances' :
-                                status.Stage === 'waiting_idle' ? (status.Message.includes('FORCING') ? 'Forcing update' : 'Waiting for bots to idle') :
-                                    status.Stage === 'updating' ? 'Updating instances' :
-                                        status.Stage === 'updating_master' ? 'Updating master instance' :
-                                            status.Stage === 'complete' ? (status.Success ? 'Update complete!' : 'Update failed') :
-                                                status.Stage === 'error' ? 'Update error' : 'Processing...',
-                    status.Message,
-                    status.Progress
-                );
-
-                // Update idle status display
-                if (status.Stage === 'waiting_idle') {
-                    document.getElementById('idle-status').style.display = 'block';
-                    document.getElementById('force-update-info').style.display = 'block';
-
-                    // Calculate time remaining for timeout
-                    if (status.StartTime) {
-                        const startTime = new Date(status.StartTime);
-                        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                        const remaining = Math.max(0, 300 - elapsed);  // 5 minutes = 300 seconds
-                        document.getElementById('timeout-countdown').textContent = remaining;
-
-                        if (remaining <= 30 && remaining > 0) {
-                            document.getElementById('timeout-countdown').style.color = 'var(--danger)';
-                        }
-                    }
-
-                    // Update the bot idle counts
-                    updateIdleStatus(status.Result?.TotalInstances || 0);
-                } else {
-                    document.getElementById('idle-status').style.display = 'none';
-                    document.getElementById('force-update-info').style.display = 'none';
-                }
-
-                // Handle completion
-                if (status.IsComplete) {
-                    clearInterval(updateState.interval);
-                    updateState.interval = null;
-                    updateState.id = null;
-                    refreshPaused = false;
-
-                    if (status.Success) {
-                        addLogEntry('Update commands sent to all instances', 'info');
-                        updateProgress(
-                            'Updates Initiated',
-                            `${status.Result?.UpdatesStarted || 0} instances are now updating. Monitoring progress...`,
-                            100
-                        );
-
-                        setTimeout(() => {
-                            closeModal('progress-modal');
-                            showToast('info', 'Updates Started', `Updates initiated for ${status.Result?.UpdatesStarted || 0} instances. Monitoring versions...`);
-
-                            // Start monitoring for actual completion
-                            monitorUpdateCompletion(status.Result?.UpdatesStarted || 0);
-                        }, 3000);
-                    } else {
-                        addLogEntry(`Update failed: ${status.Message}`, 'error');
-                        setTimeout(() => {
-                            closeModal('progress-modal');
-                            showToast('error', 'Update Failed', status.Message);
-                            refreshInstances(true);
-                        }, 2000);
-                    }
-                }
-            } catch (error) {
-                // Connection lost handling
-                console.log('Status check failed - checking if master is updating');
-
-                if (connectionLost || !response) {
-                    updateProgress(
-                        'Connection Lost',
-                        'Master instance may be updating. Will reconnect automatically...',
-                        -1
-                    );
-
-                    // Don't clear the update ID - we'll try to reconnect when connection is restored
-                }
-            }
-        }
-
-        function monitorUpdateCompletion(expectedUpdateCount) {
-            let checkCount = 0;
-            const maxChecks = 120; // Check for up to 10 minutes (120 * 5 seconds)
-            let initialVersions = {};
-            let targetVersion = null;
-
-            // Store initial versions
-            instances.forEach(instance => {
-                initialVersions[instance.Port] = instance.Version;
-            });
-
-            showToast('info', 'Monitoring Updates', 'Checking instance versions...', 10000);
-
-            const checkInterval = setInterval(async () => {
-                checkCount++;
-
-                try {
-                    await refreshInstances(true);
-
-                    let updatedCount = 0;
-                    let allOnline = true;
-                    let allSameVersion = true;
-                    let currentVersions = new Set();
-
-                    instances.forEach(instance => {
-                        currentVersions.add(instance.Version);
-
-                        // Check if this instance has updated (version changed)
-                        if (initialVersions[instance.Port] &&
-                            instance.Version !== initialVersions[instance.Port]) {
-                            updatedCount++;
-                            if (!targetVersion) targetVersion = instance.Version;
-                        }
-
-                        // Check if online
-                        if (!instance.IsOnline) {
-                            allOnline = false;
-                        }
-                    });
-
-                    allSameVersion = currentVersions.size === 1;
-
-                    // Success conditions:
-                    // 1. All instances have the same version
-                    // 2. At least expectedUpdateCount instances changed version
-                    // 3. All instances are online
-                    if (allSameVersion && updatedCount >= expectedUpdateCount && allOnline) {
-                        clearInterval(checkInterval);
-                        const finalVersion = Array.from(currentVersions)[0];
-
-                        showToast('success', 'Update Complete!',
-                            `All ${instances.length} instances are now running version ${finalVersion} and are online!`, 8000);
-
-                        // Log success
-                        console.log(`Update verification complete: All instances on version ${finalVersion}`);
-                        return;
-                    }
-
-                    // Show progress every 30 seconds
-                    if (checkCount % 6 === 0) {
-                        showToast('info', 'Update Progress',
-                            `${updatedCount} of ${expectedUpdateCount} instances updated. ${instances.filter(i => i.IsOnline).length} online.`, 5000);
-                    }
-
-                    // Timeout reached
-                    if (checkCount >= maxChecks) {
-                        clearInterval(checkInterval);
-
-                        if (updatedCount > 0) {
-                            showToast('warning', 'Update Timeout',
-                                `${updatedCount} of ${expectedUpdateCount} instances updated. Some may still be updating.`, 8000);
-                        } else {
-                            showToast('error', 'Update Verification Failed',
-                                'Could not verify updates completed. Please check instances manually.', 8000);
-                        }
-                    }
-                } catch (error) {
-                    // Connection errors are expected during updates
-                    console.log('Monitor check failed (expected during updates):', error);
-                }
-            }, 5000); // Check every 5 seconds
-        }
-
-        function updateIdleStatus(totalInstances) {
-            // Check idle status
-            fetch(`${API_BASE}/update/idle-status`)
-                .then(response => response.json())
-                .then(data => {
-                    const totalBots = data.TotalBots || 0;
-                    const idledBots = data.TotalIdleBots || 0;
-
-                    document.getElementById('bots-idled').textContent = idledBots;
-                    document.getElementById('bots-remaining').textContent = totalBots - idledBots;
-
-                    // Update countdown
-                    const elapsed = Math.floor((Date.now() - updateState.startTime) / 1000);
-                    const remaining = Math.max(0, 300 - elapsed);  // 5 minutes
-                    document.getElementById('timeout-countdown').textContent = remaining;
-
-                    // Show warning when timeout is approaching
-                    if (remaining <= 30 && remaining > 0) {
-                        document.getElementById('timeout-countdown').style.color = 'var(--danger)';
-                        document.getElementById('timeout-countdown').style.fontWeight = 'bold';
-                    }
-
-                    // Auto-hide info message since backend will force automatically
-                    if (remaining === 0) {
-                        document.getElementById('force-update-info').textContent = '⚡ Force update in progress...';
-                        addLogEntry('Timeout reached - forcing update on all active bots', 'warning');
-                    }
-                })
-                .catch(error => console.error('Error checking idle status:', error));
-        }
-
-        // Restart functions
-        async function restartAllInstances() {
-            // Check if this is the master instance
-            const response = await fetch(`${API_BASE}/instances`);
-            const data = await response.json();
-            const masterExists = data.Instances.some(i => i.IsMaster);
-
-            if (!masterExists) {
-                showToast('error', 'Error', 'No master instance found. Cannot initiate restart.');
-                return;
-            }
-
-            showModal('progress-modal');
-            document.getElementById('progress-modal-title').textContent = 'Restart in Progress';
-            document.getElementById('force-update-info').style.display = 'none';
-
-            updateProgress('Preparing restart...', 'Idling all bots before restart', 10);
-
-            try {
-                // This now waits for all bots to be idle before returning
-                const response = await fetch(`${API_BASE}/restart/all`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!response.ok) throw new Error('Restart initiation failed');
-
-                const result = await response.json();
-
-                if (result.Success) {
-                    updateProgress(
-                        'All bots idled',
-                        result.Message || 'Proceeding with restart sequence',
-                        50
-                    );
-                    addLogEntry('All bots are now idle', 'success');
-
-                    // Now proceed with the actual restarts
-                    proceedWithRestart();
-                } else {
-                    throw new Error(result.Error || result.Message || 'Failed to initiate restart');
-                }
-            } catch (error) {
-                console.error('Error restarting instances:', error);
-                updateProgress('Restart failed', error.message, 0);
-                addLogEntry(`Restart failed: ${error.message}`, 'error');
-
-                setTimeout(() => {
-                    closeModal('progress-modal');
-                    showToast('error', 'Error', 'Failed to restart instances');
-                }, 2000);
-            }
-        }
-
-        async function proceedWithRestart() {
-            updateProgress(
-                'Starting restarts',
-                'Beginning restart process for all instances...',
-                60
-            );
-
-            try {
-                const response = await fetch(`${API_BASE}/restart/proceed`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!response.ok) throw new Error('Failed to proceed with restarts');
-
-                const result = await response.json();
-
-                if (result.Success) {
-                    updateProgress(
-                        'Restarts in progress',
-                        'Instances are being restarted',
-                        90
-                    );
-
-                    if (result.MasterRestarting) {
-                        setTimeout(() => {
-                            updateProgress(
-                                'Master instance restarting',
-                                'This web interface will temporarily disconnect...',
-                                95
-                            );
-                            addLogEntry('Master instance restarting - expect temporary disconnection', 'warning');
-                        }, 1000);
-                    } else {
-                        setTimeout(() => {
-                            updateProgress(
-                                'Restarts complete!',
-                                'All instances have been restarted successfully',
-                                100
-                            );
-                            addLogEntry('All restarts completed successfully!', 'success');
-
-                            setTimeout(() => {
-                                closeModal('progress-modal');
-                                showToast('success', 'Restart Complete', 'All instances restarted');
-                                refreshInstances(true);
-                            }, 3000);
-                        }, 5000);
-                    }
-                }
-            } catch (error) {
-                console.error('Error proceeding with restarts:', error);
-                updateProgress('Restart failed', error.message, 0);
-                addLogEntry(`Failed to proceed with restarts: ${error.message}`, 'error');
-            }
-        }
-
-        function startRestartIdleMonitoring(totalInstances) {
-            updateProgress(
-                'Waiting for ALL bots to idle',
-                'All bots must finish their current operations before restarting',
-                30
-            );
-
-            restartState.countdownInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - restartState.startTime) / 1000);
-                const remaining = Math.max(0, restartState.timeout - elapsed);
-                document.getElementById('timeout-countdown').textContent = remaining;
-            }, 1000);
-
-            restartState.idleCheckInterval = setInterval(async () => {
-                try {
-                    const response = await fetch(`${API_BASE}/update/idle-status`);
-                    const data = await response.json();
-
-                    const totalBots = data.TotalBots || 0;
-                    const idledBots = data.TotalIdleBots || 0;
-                    const allIdle = data.AllBotsIdle || false;
-
-                    document.getElementById('bots-idled').textContent = idledBots;
-                    document.getElementById('bots-remaining').textContent = totalBots - idledBots;
-
-                    if (allIdle) {
-                        clearInterval(restartState.idleCheckInterval);
-                        clearInterval(restartState.countdownInterval);
-                        addLogEntry('All bots are now idle!', 'success');
-                        proceedWithRestart();
-                    }
-                } catch (error) {
-                    console.error('Error checking idle status:', error);
-                }
-            }, 1000);
-        }
-
-        async function proceedWithRestart() {
-            updateProgress(
-                'Starting restarts',
-                'All bots are idle. Beginning restart process...',
-                70
-            );
-
-            document.getElementById('idle-status').style.display = 'none';
-            document.getElementById('force-update-info').style.display = 'none';
-
-            try {
-                const response = await fetch(`${API_BASE}/restart/proceed`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!response.ok) throw new Error('Failed to proceed with restarts');
-
-                const result = await response.json();
-
-                if (result.Success) {
-                    updateProgress(
-                        'Restarts in progress',
-                        'Instances are being restarted',
-                        90
-                    );
-
-                    const masterPort = parseInt(window.location.port || '8080');
-                    if (result.MasterRestarting) {
-                        setTimeout(() => {
-                            updateProgress(
-                                'Master instance restarting',
-                                'This web interface will temporarily disconnect...',
-                                95
-                            );
-                            addLogEntry('Master instance restarting - expect temporary disconnection', 'warning');
-                            addLogEntry('Bots will automatically start after restart completes', 'info');
-                        }, 1000);
-                    } else {
-                        setTimeout(() => {
-                            updateProgress(
-                                'Restarts complete!',
-                                'All instances have been restarted successfully',
-                                100
-                            );
-                            addLogEntry('All restarts completed successfully!', 'success');
-
-                            setTimeout(async () => {
-                                await sendGlobalCommand('start');
-                                closeModal('progress-modal');
-                                showToast('success', 'Restart Complete', 'All instances restarted and started');
-                                refreshInstances(true);
-                            }, 3000);
-                        }, 5000);
-                    }
-                }
-            } catch (error) {
-                console.error('Error proceeding with restarts:', error);
-                updateProgress('Restart failed', error.message, 0);
-                addLogEntry(`Failed to proceed with restarts: ${error.message}`, 'error');
-            }
-        }
-
-        // Connection monitoring
-        let connectionLost = false;
-        let reconnectInterval = null;
-        let masterUpdating = false;
-
-        function startConnectionMonitor() {
-            setInterval(async () => {
-                try {
-                    const response = await fetch(`${API_BASE}/instances`, {
-                        method: 'GET',
-                        signal: AbortSignal.timeout(2000)
-                    });
-
-                    if (!response.ok) throw new Error('Server error');
-
-                    if (connectionLost) {
-                        connectionLost = false;
-                        handleReconnection();
-                    }
-                } catch (error) {
-                    if (!connectionLost && document.getElementById('progress-modal').classList.contains('show')) {
-                        connectionLost = true;
-                        handleConnectionLost();
-                    }
-                }
-            }, 1000);
-        }
-
-        function handleConnectionLost() {
-            if (masterUpdating) return;
-
-            const modalTitle = document.getElementById('progress-modal-title').textContent;
-            const processType = modalTitle.includes('Restart') ? 'restarting' : 'updating';
-
-            updateProgress(
-                'Connection Lost',
-                `Connection to server lost. This may be due to the master instance ${processType}...`,
-                -1
-            );
-
-            document.getElementById('progress-bar').style.width = '100%';
-            document.getElementById('progress-bar').style.opacity = '0.5';
-            document.getElementById('progress-bar').classList.add('indeterminate');
-
-            addLogEntry(`Lost connection to server - master instance may be ${processType}`, 'warning');
-            showReconnectionUI(processType);
-        }
-
-        function showReconnectionUI(processType = 'updating') {
-            const modalBody = document.querySelector('#progress-modal .modal-body');
-
-            if (!document.getElementById('reconnect-status')) {
-                const reconnectDiv = document.createElement('div');
-                reconnectDiv.id = 'reconnect-status';
-                reconnectDiv.className = 'reconnect-status';
-                reconnectDiv.innerHTML = `
-                                <div class="reconnect-icon">🔄</div>
-                                <div class="reconnect-text">Attempting to reconnect...</div>
-                                <div class="reconnect-hint">The master instance is ${processType}. This page will automatically reconnect when the ${processType === 'restarting' ? 'restart' : 'update'} is complete.</div>
-                            `;
-                modalBody.appendChild(reconnectDiv);
-            }
-        }
-
-        function handleReconnection() {
-            addLogEntry('Connection restored!', 'success');
-
-            const reconnectStatus = document.getElementById('reconnect-status');
-            if (reconnectStatus) {
-                reconnectStatus.remove();
-            }
-
-            document.getElementById('progress-bar').classList.remove('indeterminate');
-            document.getElementById('progress-bar').style.opacity = '1';
-
-            // If we have an update ID, try to reconnect to it
-            if (updateState.id) {
-                addLogEntry('Attempting to reconnect to update process...', 'info');
-                checkUpdateStatus();
-            } else {
-                // No update ID, check if any updates are active
-                checkForOngoingOperations();
-            }
-        }
-
-        async function checkFinalUpdateStatus() {
-            updateProgress(
-                'Verifying update status',
-                'Checking if all updates completed successfully...',
-                90
-            );
-
-            try {
-                const response = await fetch(`${API_BASE}/instances`);
-                const data = await response.json();
-
-                const versions = data.Instances.map(i => i.Version);
-                const allSameVersion = versions.every(v => v === versions[0]);
-
-                if (allSameVersion) {
-                    updateProgress(
-                        'Updates complete!',
-                        `All instances successfully updated to version ${versions[0]}`,
-                        100
-                    );
-                    addLogEntry(`All instances now running version ${versions[0]}`, 'success');
-
-                    setTimeout(() => {
-                        closeModal('progress-modal');
-                        showToast('success', 'Updates Complete', 'All instances have been updated successfully');
-                        refreshInstances(true);
-                    }, 3000);
-                } else {
-                    updateProgress(
-                        'Update status unclear',
-                        'Some instances may have different versions. Please check manually.',
-                        100
-                    );
-                    addLogEntry('Update completed but version mismatch detected', 'warning');
-                }
-            } catch (error) {
-                updateProgress(
-                    'Unable to verify',
-                    'Could not verify update status. Please check instances manually.',
-                    100
-                );
-            }
-        }
-
-        async function checkFinalRestartStatus() {
-            updateProgress(
-                'Verifying restart status',
-                'Checking if all instances are back online...',
-                90
-            );
-
-            try {
-                const response = await fetch(`${API_BASE}/instances`);
-                const data = await response.json();
-
-                const onlineCount = data.Instances.filter(i => i.IsOnline).length;
-                const totalCount = data.Instances.length;
-
-                if (onlineCount === totalCount) {
-                    updateProgress(
-                        'Restart complete!',
-                        `All ${totalCount} instances are back online`,
-                        100
-                    );
-                    addLogEntry('All instances successfully restarted and online', 'success');
-                    addLogEntry('Bots have been automatically started', 'success');
-
-                    setTimeout(() => {
-                        closeModal('progress-modal');
-                        showToast('success', 'Restart Complete', 'All instances have been restarted and started');
-                        refreshInstances(true);
-                    }, 3000);
-                } else {
-                    updateProgress(
-                        'Restart status',
-                        `${onlineCount} of ${totalCount} instances online`,
-                        95
-                    );
-                    addLogEntry(`Waiting for ${totalCount - onlineCount} instances to come online`, 'warning');
-
-                    setTimeout(() => checkFinalRestartStatus(), 5000);
-                }
-            } catch (error) {
-                updateProgress(
-                    'Unable to verify',
-                    'Could not verify restart status. Please check instances manually.',
-                    100
-                );
-            }
-        }
-
-        // Scheduled restart functions
-        async function loadRestartSchedule() {
-            try {
-                const response = await fetch(`${API_BASE}/restart/schedule`);
-                if (response.ok) {
-                    const schedule = await response.json();
-                    document.getElementById('schedule-restart-toggle').checked = schedule.Enabled || false;
-                    document.getElementById('restart-time').value = schedule.Time || '00:00';
-                    document.getElementById('restart-time').disabled = !schedule.Enabled;
-
-                    if (schedule.Enabled) {
-                        document.getElementById('schedule-status').style.display = 'flex';
-                        updateNextRestartTime();
-                    }
-                }
-            } catch {
-                const enabled = localStorage.getItem('scheduleRestartEnabled') === 'true';
-                const time = localStorage.getItem('scheduleRestartTime') || '00:00';
-
-                document.getElementById('schedule-restart-toggle').checked = enabled;
-                document.getElementById('restart-time').value = time;
-                document.getElementById('restart-time').disabled = !enabled;
-
-                if (enabled) {
-                    document.getElementById('schedule-status').style.display = 'flex';
-                    updateNextRestartTime();
-                }
-            }
-        }
-
-        async function toggleScheduledRestart() {
-            const enabled = document.getElementById('schedule-restart-toggle').checked;
-            const time = document.getElementById('restart-time').value;
-
-            document.getElementById('restart-time').disabled = !enabled;
-
-            try {
-                await fetch(`${API_BASE}/restart/schedule`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Enabled: enabled, Time: time })
-                });
-            } catch {
-                localStorage.setItem('scheduleRestartEnabled', enabled);
-                localStorage.setItem('scheduleRestartTime', time);
-            }
-
-            if (enabled) {
-                document.getElementById('schedule-status').style.display = 'flex';
-                updateNextRestartTime();
-                startScheduleChecker();
-            } else {
-                document.getElementById('schedule-status').style.display = 'none';
-                if (restartScheduleInterval) {
-                    clearInterval(restartScheduleInterval);
-                    restartScheduleInterval = null;
-                }
-            }
-        }
-
-        async function updateRestartSchedule() {
-            const enabled = document.getElementById('schedule-restart-toggle').checked;
-            const time = document.getElementById('restart-time').value;
-
-            try {
-                await fetch(`${API_BASE}/restart/schedule`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ Enabled: enabled, Time: time })
-                });
-            } catch {
-                localStorage.setItem('scheduleRestartTime', time);
-            }
-
-            updateNextRestartTime();
-        }
-
-        function updateNextRestartTime() {
-            const time = document.getElementById('restart-time').value;
-            const [hours, minutes] = time.split(':').map(n => parseInt(n));
-
-            const now = new Date();
-            const next = new Date();
-            next.setHours(hours, minutes, 0, 0);
-
-            if (next <= now) {
-                next.setDate(next.getDate() + 1);
-            }
-
-            const formatter = new Intl.DateTimeFormat('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            });
-
-            document.getElementById('next-restart-time').textContent = formatter.format(next);
-        }
-
-        function startScheduleChecker() {
-            if (restartScheduleInterval) clearInterval(restartScheduleInterval);
-            restartScheduleInterval = setInterval(checkRestartSchedule, 30000);
-        }
-
-        async function checkRestartSchedule() {
-            try {
-                const response = await fetch(`${API_BASE}/restart/schedule`);
-                const schedule = await response.json();
-
-                if (!schedule.Enabled) return;
-
-                const time = schedule.Time || '00:00';
-                const [hours, minutes] = time.split(':').map(n => parseInt(n));
-
-                const now = new Date();
-                const currentHour = now.getHours();
-                const currentMinute = now.getMinutes();
-
-                if (currentHour === hours && currentMinute === minutes) {
-                    const lastRestart = localStorage.getItem('lastScheduledRestart');
-                    const todayStr = now.toDateString();
-
-                    if (lastRestart !== todayStr) {
-                        localStorage.setItem('lastScheduledRestart', todayStr);
-                        showToast('info', 'Scheduled Restart', 'Starting scheduled restart...');
-                        restartAllInstances();
-                    }
-                }
-
-                if (schedule.Enabled && !restartScheduleInterval) {
-                    startScheduleChecker();
-                }
-            } catch {
-                const enabled = localStorage.getItem('scheduleRestartEnabled') === 'true';
-                if (!enabled) return;
-
-                const time = localStorage.getItem('scheduleRestartTime') || '00:00';
-                const [hours, minutes] = time.split(':').map(n => parseInt(n));
-
-                const now = new Date();
-                const currentHour = now.getHours();
-                const currentMinute = now.getMinutes();
-
-                if (currentHour === hours && currentMinute === minutes) {
-                    const lastRestart = localStorage.getItem('lastScheduledRestart');
-                    const todayStr = now.toDateString();
-
-                    if (lastRestart !== todayStr) {
-                        localStorage.setItem('lastScheduledRestart', todayStr);
-                        showToast('info', 'Scheduled Restart', 'Starting scheduled restart...');
-                        restartAllInstances();
-                    }
-                }
-
-                if (enabled && !restartScheduleInterval) {
-                    startScheduleChecker();
-                }
-            }
-        }
-
-        // UI utilities
-        function showModal(modalId) {
-            document.getElementById(modalId).classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('show');
-            document.body.style.overflow = '';
-
-            if (modalId === 'progress-modal') {
-                if (updateState.interval) {
-                    clearInterval(updateState.interval);
-                    updateState.interval = null;
-                }
-
-                updateState.id = null;
-                refreshPaused = false;
-
-                if (restartState.idleCheckInterval) {
-                    clearInterval(restartState.idleCheckInterval);
-                    restartState.idleCheckInterval = null;
-                }
-                if (restartState.countdownInterval) {
-                    clearInterval(restartState.countdownInterval);
-                    restartState.countdownInterval = null;
-                }
-
-                // Reset the force update info text
-                document.getElementById('force-update-info').textContent = '⚡ Update will be forced automatically after timeout';
-            }
-        }
-
-        function closeUpdateModal() {
-            closeModal('update-modal');
-        }
-
-        function updateProgress(status, details, percentage) {
-            document.getElementById('progress-status').textContent = status;
-            document.getElementById('progress-details').textContent = details;
-
-            if (percentage >= 0) {
-                document.getElementById('progress-bar').style.width = `${percentage}%`;
-            }
-
-            const iconMap = {
-                'Initializing': '🔍',
-                'Preparing': '📋',
-                'Waiting': '⏳',
-                'Starting': '🚀',
-                'Updating': '📦',
-                'Updates complete': '✅',
-                'Update failed': '❌',
-                'Forcing': '⚡',
-                'Force': '⚡',
-                'Restart': '🔄',
-                'Checking': '🔍',
-                'Scanning': '📊',
-                'Idling': '⏸️',
-                'Connection': '🔌',
-                'Master': '👑',
-                'Verifying': '🔍'
-            };
-
-            const icon = Object.entries(iconMap).find(([key]) =>
-                status.toLowerCase().includes(key.toLowerCase())
-            )?.[1] || '⏳';
-
-            document.querySelector('.step-icon').textContent = icon;
-        }
-
-        function addLogEntry(message, type = 'info') {
-            const log = document.getElementById('update-log');
-            const time = new Date().toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
-        }
-
-        function showError(message) {
-            console.error(message);
-            showToast('error', 'Error', message);
-        }
-
-        function showToast(type, title, message, duration = 4000) {
-            const toastId = Date.now();
-            const toast = document.getElementById('toast').cloneNode(true);
-            toast.id = `toast-${toastId}`;
-
-            const icon = toast.querySelector('.toast-icon');
-            const titleEl = toast.querySelector('.toast-title');
-            const messageEl = toast.querySelector('.toast-message');
-
-            titleEl.textContent = title;
-            messageEl.textContent = message;
-
-            toast.className = 'toast';
-            switch (type) {
-                case 'success':
-                    icon.textContent = '✅';
-                    toast.classList.add('success');
-                    break;
-                case 'error':
-                    icon.textContent = '❌';
-                    toast.classList.add('error');
-                    break;
-                case 'warning':
-                    icon.textContent = '⚠️';
-                    toast.classList.add('warning');
-                    break;
-                case 'info':
-                default:
-                    icon.textContent = 'ℹ️';
-                    toast.classList.add('info');
-                    break;
-            }
-
-            document.body.appendChild(toast);
-            activeToasts.push(toastId);
-
-            const toastHeight = 80;
-            const bottomOffset = activeToasts.indexOf(toastId) * toastHeight;
-
-            if (window.innerWidth <= 768) {
-                toast.style.bottom = `${bottomOffset}px`;
-            } else {
-                toast.style.bottom = `${32 + bottomOffset}px`;
-            }
-
-            toast.offsetHeight;
-
-            requestAnimationFrame(() => {
-                toast.classList.add('show');
-            });
-
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    toast.remove();
-                    activeToasts = activeToasts.filter(id => id !== toastId);
-
-                    activeToasts.forEach((id, index) => {
-                        const remainingToast = document.getElementById(`toast-${id}`);
-                        if (remainingToast) {
-                            if (window.innerWidth <= 768) {
-                                remainingToast.style.bottom = `${index * toastHeight}px`;
-                            } else {
-                                remainingToast.style.bottom = `${32 + index * toastHeight}px`;
-                            }
-                        }
-                    });
-                }, 300);
-            }, duration);
-        }
-
-        function getStatusColor(status) {
-            const upperStatus = status?.toUpperCase() || '';
-            if (upperStatus.includes('RUNNING') || upperStatus.includes('ACTIVE') || upperStatus === 'ONLINE' ||
-                (!upperStatus.includes('IDLE') && !upperStatus.includes('STOPPED') && !upperStatus.includes('ERROR') && !upperStatus.includes('UNKNOWN'))) {
-                return '#10b981';
-            } else if (upperStatus.includes('IDLE') || upperStatus.includes('PAUSED')) {
-                return '#f59e0b';
-            } else if (upperStatus.includes('STOPPED') || upperStatus.includes('OFFLINE') || upperStatus.includes('DISCONNECTED')) {
-                return '#ef4444';
-            } else if (upperStatus.includes('ERROR')) {
-                return '#ef4444';
-            } else {
-                return '#6b7280';
-            }
-        }
-
-        function getStatusClass(status) {
-            const upperStatus = status?.toUpperCase() || '';
-            if (upperStatus.includes('RUNNING') || upperStatus.includes('ACTIVE') ||
-                (!upperStatus.includes('IDLE') && !upperStatus.includes('STOPPED') && !upperStatus.includes('ERROR') && !upperStatus.includes('UNKNOWN'))) {
-                return 'running';
-            } else if (upperStatus.includes('IDLE')) {
-                return 'idle';
-            } else if (upperStatus.includes('STOPPED') || upperStatus.includes('ERROR')) {
-                return 'stopped';
-            } else {
-                return 'error';
-            }
-        }
+        // Immediate theme initialization to prevent flash
+        (function() {
+            const stored = localStorage.getItem('bot-panel-theme');
+            const theme = stored || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
     </script>
 </body>
 </html>

@@ -2,9 +2,6 @@
 ![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/hexbyt3/PokeBot/total?style=flat-square&logoColor=Red&color=red)
 
-
-
-
 ![image](https://github.com/user-attachments/assets/bee51b3d-92a0-482c-a4ad-7f9f08d21f51)
 
 ## Support Discord:
@@ -16,28 +13,33 @@ For support on setting up your own instance of PokeBot, feel free to join the di
 [sys-botbase](https://github.com/olliz0r/sys-botbase) client for remote control automation of Nintendo Switch consoles.
 
 # Screenshots
-![sysbotui](https://github.com/user-attachments/assets/577ef044-9110-43ce-b8df-0b9d3d7f0563)
+![sysbot](https://github.com/user-attachments/assets/dbc0f47f-c80b-4180-8918-6336ce0646c2)
 
 
-# Noteworthy Features
+
+# PokeBot Control Panel
 - **Locally Hosted Control Panel** 
 Control all of your bots with a simple to use control panel via `http://localhost:8080` on your host machine.
 
-![image](https://github.com/user-attachments/assets/27dbad7a-52f6-4311-8949-4c50ec444cf4)
+ ## Control Panel
+<img width="1633" height="641" alt="image" src="https://github.com/user-attachments/assets/9e67d6d6-273a-4e2c-bf0e-ff7eb38b5ca8" />
+<img width="1642" height="1095" alt="image" src="https://github.com/user-attachments/assets/762e41ce-0d66-4376-9019-9530a9360d80" />
 
+ ## Remote Control
+Control your switches right from the control center.  Simply open up the Remote Control window, select the IP of the switch you wish to control, and start clicking away on the remotes!
+<img width="1405" height="1151" alt="image" src="https://github.com/user-attachments/assets/d92647c4-e177-4e19-97b2-34cfd26bb77e" />
 
-- Live Log Searching through the Log tab.  Search for anything and find results fast.
+ ## Log Viewer
+View logs right from the control center!  Search for errors, users, and more!
+<img width="1410" height="1160" alt="image" src="https://github.com/user-attachments/assets/aaf823a9-6709-49e8-8a82-52f6865cbf49" />
 
-![image](https://github.com/user-attachments/assets/820d8892-ae52-4aa6-981a-cb57d1c32690)
-
-- Tray Support - When you press X to close out of the program, it goes to the system tray.  Right click the PokeBot icon in the tray to exit or control the bot.
-
-![image](https://github.com/user-attachments/assets/3a30b334-955c-4fb3-b7d8-60cd005a2e18)
+  ## Realtime feedback
+ Control all of your programs with the click of a button!  Idle all, stop all, start all, turn on/off all your switch screens at once!
+<img width="1037" height="640" alt="image" src="https://github.com/user-attachments/assets/42dd0998-a759-4739-b2c7-ba96d65124a9" />
 
 - **Automatic Updates**
 Update your bots with the click of a button to always stay current with latest PKHeX/ALM releases.
-![image](https://github.com/user-attachments/assets/c4596ac3-bd08-4242-a817-f35ea7881840)
-
+<img width="712" height="875" alt="image" src="https://github.com/user-attachments/assets/7fd0215b-c9a4-4d15-ac52-fb9d6a8de27c" />
 
 # 📱 Access PokeBot from Any Device on Your Network
 
@@ -64,6 +66,16 @@ netsh advfirewall firewall add rule name="PokeBot Web" dir=in action=allow proto
 - Admin rights (first time only)
 
 ---
+
+# Other Program Features
+
+- Live Log Searching through the Log tab.  Search for anything and find results fast.
+
+![image](https://github.com/user-attachments/assets/820d8892-ae52-4aa6-981a-cb57d1c32690)
+
+- Tray Support - When you press X to close out of the program, it goes to the system tray.  Right click the PokeBot icon in the tray to exit or control the bot.
+
+![image](https://github.com/user-attachments/assets/3a30b334-955c-4fb3-b7d8-60cd005a2e18)
 
 # Pokémon Trading Bot Commands
 

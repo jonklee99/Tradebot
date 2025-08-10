@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -169,20 +170,90 @@ namespace SysBot.Pokemon.WinForms
         {
             Main.IsUpdating = true;
             string tempPath = Path.Combine(Path.GetTempPath(), $"SysBot.Pokemon.WinForms_{Guid.NewGuid()}.exe");
+            
+            const int maxRetries = 3;
+            Exception? lastException = null;
 
-            using (var client = new HttpClient())
+            for (int retry = 0; retry < maxRetries; retry++)
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "SysBot");
-                var response = await client.GetAsync(downloadUrl);
-                response.EnsureSuccessStatusCode();
-                var fileBytes = await response.Content.ReadAsByteArrayAsync();
-                await File.WriteAllBytesAsync(tempPath, fileBytes);
+                if (retry > 0)
+                {
+                    // Wait before retry (exponential backoff)
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retry)));
+                    Console.WriteLine($"Retrying download attempt {retry + 1}/{maxRetries}...");
+                }
+
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromMinutes(10); // 10 minute timeout for downloads on slow connections
+                    client.DefaultRequestHeaders.Add("User-Agent", "PokeBot");
+                    // No auth token needed for public repo
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+                    try
+                    {
+                        var response = await client.GetAsync(downloadUrl);
+                        response.EnsureSuccessStatusCode();
+                        
+                        // Download with progress tracking for large files
+                        using (var stream = await response.Content.ReadAsStreamAsync())
+                        {
+                            var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                            var bytesRead = 0;
+                            var buffer = new byte[8192];
+                            
+                            using (var ms = new MemoryStream())
+                            {
+                                int read;
+                                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                                {
+                                    await ms.WriteAsync(buffer, 0, read);
+                                    bytesRead += read;
+                                    
+                                    if (totalBytes > 0)
+                                    {
+                                        var progress = (int)((bytesRead * 100L) / totalBytes);
+                                        Console.WriteLine($"Download progress: {progress}%");
+                                    }
+                                }
+                                
+                                var fileBytes = ms.ToArray();
+                                await File.WriteAllBytesAsync(tempPath, fileBytes);
+                            }
+                        }
+                        Console.WriteLine($"Successfully downloaded update to {tempPath}");
+                        return tempPath;
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        Console.WriteLine($"Download timed out on attempt {retry + 1}: {ex.Message}");
+                        lastException = ex;
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        Console.WriteLine($"Download failed on attempt {retry + 1}: {ex.Message}");
+                        lastException = ex;
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error during download on attempt {retry + 1}: {ex.Message}");
+                        lastException = ex;
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                }
             }
 
-            return tempPath;
+            // All retries failed
+            Console.WriteLine($"Failed to download update after {maxRetries} attempts");
+            throw lastException ?? new Exception("Download failed after all retry attempts");
         }
 
-        private void InstallUpdate(string downloadedFilePath)
+        private static void InstallUpdate(string downloadedFilePath)
         {
             try
             {

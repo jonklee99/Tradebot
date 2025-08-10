@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace SysBot.Pokemon.WinForms
 {
@@ -13,68 +15,171 @@ namespace SysBot.Pokemon.WinForms
         private const string RepositoryOwner = "";
         private const string RepositoryName = "";
 
+        private static HttpClient CreateGitHubClient()
+        {
+            var client = new HttpClient();
+            client.Timeout = TimeSpan.FromMinutes(5); // 5 minute timeout for slow connections
+            client.DefaultRequestHeaders.Add("User-Agent", "PokeBot");
+            // No auth token needed for public repo
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+            return client;
+        }
+
         public static async Task<(bool UpdateAvailable, bool UpdateRequired, string NewVersion)> CheckForUpdatesAsync(bool forceShow = false)
         {
-            ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
-
-            bool updateAvailable = latestRelease != null && latestRelease.TagName != PokeBot.Version;
-            bool updateRequired = latestRelease?.Prerelease == false && IsUpdateRequired(latestRelease?.Body);
-            string? newVersion = latestRelease?.TagName;
-
-            if (updateAvailable || forceShow)
+            try
             {
-                var updateForm = new UpdateForm(updateRequired, newVersion ?? "", updateAvailable);
-                updateForm.ShowDialog();
-            }
+                ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
+                if (latestRelease == null)
+                {
+                    if (forceShow)
+                    {
+                        MessageBox.Show("Failed to fetch release information. Please check your internet connection.",
+                            "Update Check Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    return (false, false, string.Empty);
+                }
 
-            return (updateAvailable, updateRequired, newVersion ?? string.Empty);
+                bool updateAvailable = latestRelease.TagName != PokeBot.Version;
+                bool updateRequired = !latestRelease.Prerelease && IsUpdateRequired(latestRelease.Body ?? string.Empty);
+                string newVersion = latestRelease.TagName ?? string.Empty;
+
+                if (forceShow)
+                {
+                    var updateForm = new UpdateForm(updateRequired, newVersion, updateAvailable);
+                    updateForm.ShowDialog();
+                }
+
+                return (updateAvailable, updateRequired, newVersion);
+            }
+            catch (Exception ex)
+            {
+                if (forceShow)
+                {
+                    MessageBox.Show($"Error checking for updates: {ex.Message}",
+                        "Update Check Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                return (false, false, string.Empty);
+            }
         }
 
         public static async Task<string> FetchChangelogAsync()
         {
-            ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
-            return latestRelease?.Body ?? "Failed to fetch the latest release information.";
+            try
+            {
+                ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
+                return latestRelease?.Body ?? "Failed to fetch the latest release information.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error fetching changelog: {ex.Message}";
+            }
         }
 
         public static async Task<string?> FetchDownloadUrlAsync()
         {
-            ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
-            if (latestRelease?.Assets == null)
-                return null;
+            try
+            {
+                ReleaseInfo? latestRelease = await FetchLatestReleaseAsync();
+                if (latestRelease?.Assets == null || !latestRelease.Assets.Any())
+                {
+                    Console.WriteLine("No assets found in the release");
+                    return null;
+                }
 
-            return latestRelease.Assets
-                .FirstOrDefault(a => a.Name?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true)
-                ?.BrowserDownloadUrl;
+                var exeAsset = latestRelease.Assets
+                    .FirstOrDefault(a => a.Name?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
+
+                if (exeAsset == null)
+                {
+                    Console.WriteLine("No .exe asset found in the release");
+                    return null;
+                }
+
+                // For public repos, use browser_download_url directly
+                if (string.IsNullOrEmpty(exeAsset.BrowserDownloadUrl))
+                {
+                    Console.WriteLine("Download URL is empty");
+                    return null;
+                }
+
+                Console.WriteLine($"Found download URL: {exeAsset.BrowserDownloadUrl}");
+                return exeAsset.BrowserDownloadUrl;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching download URL: {ex.Message}");
+                return null;
+            }
         }
 
         private static async Task<ReleaseInfo?> FetchLatestReleaseAsync()
         {
-            using var client = new HttpClient();
-            try
+            const int maxRetries = 3;
+            Exception? lastException = null;
+            
+            for (int retry = 0; retry < maxRetries; retry++)
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "PokeBot");
-
-                string releasesUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest";
-                HttpResponseMessage response = await client.GetAsync(releasesUrl);
-
-                if (!response.IsSuccessStatusCode)
+                if (retry > 0)
                 {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"GitHub API Error: {response.StatusCode} - {errorContent}");
-                    return null;
+                    // Wait before retry (exponential backoff)
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retry)));
+                    Console.WriteLine($"Retrying fetch attempt {retry + 1}/{maxRetries}...");
                 }
+                
+                using var client = CreateGitHubClient();
+                try
+                {
+                    string releasesUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest";
+                    Console.WriteLine($"Fetching from URL: {releasesUrl}");
 
-                string jsonContent = await response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<ReleaseInfo>(jsonContent);
+                    HttpResponseMessage response = await client.GetAsync(releasesUrl);
+                    string responseContent = await response.Content.ReadAsStringAsync();
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine($"GitHub API Error: {response.StatusCode} - {responseContent}");
+                        lastException = new HttpRequestException($"GitHub API returned {response.StatusCode}");
+                        continue; // Try again
+                    }
+
+                    var releaseInfo = JsonConvert.DeserializeObject<ReleaseInfo>(responseContent);
+                    if (releaseInfo == null)
+                    {
+                        Console.WriteLine("Failed to deserialize release info");
+                        lastException = new InvalidOperationException("Failed to deserialize release info");
+                        continue; // Try again
+                    }
+
+                    Console.WriteLine($"Successfully fetched release info. Tag: {releaseInfo.TagName}");
+                    return releaseInfo;
+                }
+                catch (TaskCanceledException ex)
+                {
+                    Console.WriteLine($"Request timed out on attempt {retry + 1}: {ex.Message}");
+                    lastException = ex;
+                }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine($"Network error on attempt {retry + 1}: {ex.Message}");
+                    lastException = ex;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error on attempt {retry + 1}: {ex.Message}");
+                    lastException = ex;
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error fetching release info: {ex.Message}");
-                return null;
-            }
+            
+            // All retries failed
+            Console.WriteLine($"Failed to fetch release info after {maxRetries} attempts");
+            if (lastException != null)
+                Console.WriteLine($"Last error: {lastException.Message}");
+                
+            return null;
         }
 
-        private static bool IsUpdateRequired(string? changelogBody)
+        private static bool IsUpdateRequired(string changelogBody)
         {
             return !string.IsNullOrWhiteSpace(changelogBody) &&
                    changelogBody.Contains("Required = Yes", StringComparison.OrdinalIgnoreCase);
@@ -99,6 +204,9 @@ namespace SysBot.Pokemon.WinForms
         {
             [JsonProperty("name")]
             public string? Name { get; set; }
+
+            [JsonProperty("url")]
+            public string? Url { get; set; }
 
             [JsonProperty("browser_download_url")]
             public string? BrowserDownloadUrl { get; set; }
