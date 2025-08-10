@@ -1,6 +1,4 @@
 using SysBot.Base;
-using SysBot.Pokemon.Discord;
-using SysBot.Pokemon.WinForms.Helpers;
 using System;
 using System.ComponentModel;
 using System.Drawing;
