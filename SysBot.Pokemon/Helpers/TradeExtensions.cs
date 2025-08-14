@@ -198,8 +198,11 @@ public abstract class TradeExtensions<T> where T : PKM, new()
         };
 
         // Set MetDate based on MetLocation
-        // If MetLocation is 0, MetDate fields must also be 0 (per PKHeX validation)
-        if (pk.MetLocation == 0)
+        // For unhatched eggs:
+        // - PK9 (SV): MetLocation 0 requires MetDate fields to be 0
+        // - PB8 (BDSP): MetLocation 65535 requires MetDate fields to be 0
+        // - PK8 (SwSh): MetLocation 30002 can have a valid MetDate
+        if (pk.MetLocation == 0 || pk.MetLocation == 65535)
         {
             pk.MetYear = 0;
             pk.MetMonth = 0;
