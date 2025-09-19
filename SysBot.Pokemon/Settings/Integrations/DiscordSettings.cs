@@ -110,6 +110,9 @@ public class DiscordSettings
     [Category(Channels), Description("Channel IDs that will echo the log bot data.")]
     public RemoteControlAccessList LoggingChannels { get; set; } = new();
 
+    [Category(Channels), Description("User ID or Channel ID to forward bot DMs to. Leave empty to disable.")]
+    public string UserDMsToBotForwarder { get; set; } = string.Empty;
+
     [Category(Startup), Description("List of modules that will not be loaded when the bot is started (comma separated).")]
     public string ModuleBlacklist { get; set; } = string.Empty;
 
