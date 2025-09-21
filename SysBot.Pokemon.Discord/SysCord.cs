@@ -96,7 +96,7 @@ public sealed class SysCord<T> where T : PKM, new()
 
         if (forwardTargetId != 0)
         {
-            _ = new DMRelayService(_client, forwardTargetId);
+            _ = new DMRelayService(_client, forwardTargetId, Hub.Config.Discord);
             LogUtil.LogInfo("SysCord", $"DM relay active -> forwarding bot DMs to {forwardTargetId}");
         }
 
