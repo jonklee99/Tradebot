@@ -15,6 +15,10 @@ namespace SysBot.Pokemon.WinForms
         private const string RepositoryOwner = "";
         private const string RepositoryName = "";
 
+        // Reuse HttpClient to prevent socket exhaustion and memory leaks
+        // HttpClient is thread-safe and should be reused
+        private static readonly HttpClient _sharedClient = CreateGitHubClient();
+
         private static HttpClient CreateGitHubClient()
         {
             var client = new HttpClient();
@@ -117,7 +121,7 @@ namespace SysBot.Pokemon.WinForms
         {
             const int maxRetries = 3;
             Exception? lastException = null;
-            
+
             for (int retry = 0; retry < maxRetries; retry++)
             {
                 if (retry > 0)
@@ -126,14 +130,14 @@ namespace SysBot.Pokemon.WinForms
                     await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retry)));
                     Console.WriteLine($"Retrying fetch attempt {retry + 1}/{maxRetries}...");
                 }
-                
-                using var client = CreateGitHubClient();
+
+                // Use shared HttpClient instance to prevent memory leaks
                 try
                 {
                     string releasesUrl = $"https://api.github.com/repos/{RepositoryOwner}/{RepositoryName}/releases/latest";
                     Console.WriteLine($"Fetching from URL: {releasesUrl}");
 
-                    HttpResponseMessage response = await client.GetAsync(releasesUrl);
+                    HttpResponseMessage response = await _sharedClient.GetAsync(releasesUrl);
                     string responseContent = await response.Content.ReadAsStringAsync();
 
                     if (!response.IsSuccessStatusCode)
@@ -170,12 +174,12 @@ namespace SysBot.Pokemon.WinForms
                     lastException = ex;
                 }
             }
-            
+
             // All retries failed
             Console.WriteLine($"Failed to fetch release info after {maxRetries} attempts");
             if (lastException != null)
                 Console.WriteLine($"Last error: {lastException.Message}");
-                
+
             return null;
         }
 

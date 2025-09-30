@@ -79,6 +79,7 @@ public class BotSource<T>(RoutineExecutor<T> Bot)
 
         IsStopping = true;
         Source.Cancel();
+        Source.Dispose(); // Dispose the old CancellationTokenSource to prevent memory leak
         Source = new CancellationTokenSource();
 
         Task.Run(async () => await Bot.HardStop()

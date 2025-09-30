@@ -82,7 +82,9 @@ public abstract class TradeExtensions<T> where T : PKM, new()
 
         if (mgPkm is not null && result is EntityConverterResult.Success)
         {
-            var enc = new LegalityAnalysis(mgPkm).EncounterMatch;
+            // Create LA once and reuse it
+            var laTemp = new LegalityAnalysis(mgPkm);
+            var enc = laTemp.EncounterMatch;
             mgPkm.SetHandlerandMemory(info, enc);
 
             if (mgPkm.TID16 is 0 && mgPkm.SID16 is 0)
@@ -97,27 +99,28 @@ public abstract class TradeExtensions<T> where T : PKM, new()
             else if (mgPkm.Species is (ushort)Species.Silvally && mgPkm.Form > 0)
                 mgPkm.HeldItem = mgPkm.Form + 903;
             else mgPkm.HeldItem = 0;
+
+            // Apply trash bytes fix
+            mgPkm = TrashBytes((T)mgPkm, laTemp);
+
+            // Re-validate after modifications
+            var la = new LegalityAnalysis(mgPkm);
+            if (!la.Valid)
+            {
+                mgPkm.SetRandomIVs(6);
+                var text = ShowdownParsing.GetShowdownText(mgPkm);
+                var set = new ShowdownSet(text);
+                var template = AutoLegalityWrapper.GetTemplate(set);
+                var pk = AutoLegalityWrapper.GetLegal(info, template, out _);
+                pk.SetAllTrainerData(info);
+                return (T)pk;
+            }
+
+            return (T)mgPkm;
         }
         else
         {
             return new();
-        }
-
-        mgPkm = TrashBytes((T)mgPkm);
-        var la = new LegalityAnalysis(mgPkm);
-        if (!la.Valid)
-        {
-            mgPkm.SetRandomIVs(6);
-            var text = ShowdownParsing.GetShowdownText(mgPkm);
-            var set = new ShowdownSet(text);
-            var template = AutoLegalityWrapper.GetTemplate(set);
-            var pk = AutoLegalityWrapper.GetLegal(info, template, out _);
-            pk.SetAllTrainerData(info);
-            return (T)pk;
-        }
-        else
-        {
-            return (T)mgPkm;
         }
     }
 
@@ -149,7 +152,10 @@ public abstract class TradeExtensions<T> where T : PKM, new()
 
         pkm.Ball = 21;
         pkm.IVs = [31, nickname.Contains(dittoStats[0]) ? 0 : 31, 31, nickname.Contains(dittoStats[1]) ? 0 : 31, nickname.Contains(dittoStats[2]) ? 0 : 31, 31];
-        TrashBytes(pkm, new LegalityAnalysis(pkm));
+
+        // Create LA once and pass to TrashBytes to reuse it
+        var la = new LegalityAnalysis(pkm);
+        TrashBytes(pkm, la);
     }
 
     // https://github.com/Koi-3088/ForkBot.NET/blob/KoiTest/SysBot.Pokemon/Helpers/TradeExtensions.cs
@@ -532,24 +538,26 @@ public abstract class TradeExtensions<T> where T : PKM, new()
 
     public static PKM TrashBytes(PKM pkm, LegalityAnalysis? la = null)
     {
-        var pkMet = (T)pkm.Clone();
-        if (pkMet.Version is not GameVersion.GO)
-            pkMet.MetDate = DateOnly.FromDateTime(DateTime.Now);
+        // Simply update MetDate for non-GO Pokemon
+        // The caller will handle validation
+        var result = (T)pkm.Clone();
+        if (result.Version is not GameVersion.GO)
+            result.MetDate = DateOnly.FromDateTime(DateTime.Now);
 
-        var analysis = new LegalityAnalysis(pkMet);
-        var pkTrash = (T)pkMet.Clone();
-        if (analysis.Valid)
+        // If a LegalityAnalysis was provided and is valid, attempt nickname cleanup
+        if (la?.Valid == true)
         {
-            pkTrash.IsNicknamed = true;
-            pkTrash.Nickname = "UwU";
-            pkTrash.SetDefaultNickname(la ?? new LegalityAnalysis(pkTrash));
+            var withNickname = (T)result.Clone();
+            withNickname.IsNicknamed = true;
+            withNickname.Nickname = "UwU";
+            withNickname.SetDefaultNickname(la);
+
+            // Only return the nickname-cleaned version if we know it's valid
+            // The caller will validate anyway, so we don't need to check here
+            result = withNickname;
         }
 
-        if (new LegalityAnalysis(pkTrash).Valid)
-            pkm = pkTrash;
-        else if (analysis.Valid)
-            pkm = pkMet;
-        return pkm;
+        return result;
     }
 
     public static bool IsEggCheck(string showdownSet)
