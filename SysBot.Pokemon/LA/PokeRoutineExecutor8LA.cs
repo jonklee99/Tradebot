@@ -109,6 +109,7 @@ public abstract class PokeRoutineExecutor8LA : PokeRoutineExecutor<PA8>
             Log("Turning off screen.");
             await SetScreen(ScreenState.Off, token).ConfigureAwait(false);
         }
+        await SetController(ControllerType.ProController, token);
     }
 
     public async Task<bool> IsOnOverworld(ulong offset, CancellationToken token)
