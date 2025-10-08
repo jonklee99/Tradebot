@@ -1,4 +1,5 @@
 using PKHeX.Core;
+using PKHeX.Core.AutoMod;
 using SysBot.Base;
 using SysBot.Pokemon.Helpers;
 using System;
@@ -38,11 +39,30 @@ namespace SysBot.Pokemon.Twitch
             try
             {
                 var sav = AutoLegalityWrapper.GetTrainerInfo<T>();
-                PKM pkm = sav.GetLegal(template, out var result);
+
+                // Check if this is an egg request
+                bool isEgg = set.Nickname.Equals("egg", StringComparison.CurrentCultureIgnoreCase) && Breeding.CanHatchAsEgg(set.Species);
+
+                PKM pkm;
+                string result;
+                if (isEgg)
+                {
+                    // Use ALM's GenerateEgg method for eggs
+                    pkm = sav.GenerateEgg(template, out var eggResult);
+                    result = eggResult.ToString();
+                    if (eggResult != LegalizationResult.Regenerated)
+                    {
+                        msg = $"Skipping trade, @{username}: Failed to generate egg.";
+                        return false;
+                    }
+                }
+                else
+                {
+                    // Use normal generation for non-eggs
+                    pkm = sav.GetLegal(template, out result);
+                }
 
                 var nickname = pkm.Nickname.ToLower();
-                if (nickname == "egg" && Breeding.CanHatchAsEgg(pkm.Species))
-                    TradeExtensions<T>.EggTrade(pkm, template);
 
                 if (pkm.Species == 132 && (nickname.Contains("atk") || nickname.Contains("spa") || nickname.Contains("spe") || nickname.Contains("6iv")))
                     TradeExtensions<T>.DittoTrade(pkm);
