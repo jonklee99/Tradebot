@@ -139,7 +139,7 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
                     if (uptime.TotalSeconds >= _config.MinimumStableUptimeSeconds)
                     {
                         state.ConsecutiveFailures = 0;
-                        LogUtil.LogInfo($"Bot {botName} has been stable for {uptime.TotalMinutes:F1} minutes. Resetting recovery attempts.", "Recovery");
+                        LogUtil.LogInfo("Recovery", $"Bot {botName} has been stable for {uptime.TotalMinutes:F1} minutes. Resetting recovery attempts.");
                     }
                 }
             }

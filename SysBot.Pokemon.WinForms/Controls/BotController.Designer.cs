@@ -1,4 +1,9 @@
-﻿namespace SysBot.Pokemon.WinForms
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace SysBot.Pokemon.WinForms
 {
     partial class BotController
     {
@@ -13,9 +18,43 @@
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing)
             {
-                components.Dispose();
+                // Unsubscribe event handlers to prevent memory leaks
+                if (contextMenu != null)
+                {
+                    contextMenu.Opening -= RcMenuOnOpening;
+                }
+
+                // Unsubscribe MouseEnter/MouseLeave handlers from all controls
+                foreach (var c in Controls.OfType<Control>())
+                {
+                    if (c != btnActions)
+                    {
+                        c.MouseEnter -= BotController_MouseEnter;
+                        c.MouseLeave -= BotController_MouseLeave;
+                    }
+                }
+
+                if (mainPanel != null)
+                {
+                    foreach (var c in mainPanel.Controls.OfType<Control>())
+                    {
+                        c.MouseEnter -= BotController_MouseEnter;
+                        c.MouseLeave -= BotController_MouseLeave;
+                    }
+                }
+
+                if (animationTimer != null)
+                {
+                    animationTimer.Stop();
+                    animationTimer.Dispose();
+                }
+
+                if (components != null)
+                {
+                    components.Dispose();
+                }
             }
             base.Dispose(disposing);
         }

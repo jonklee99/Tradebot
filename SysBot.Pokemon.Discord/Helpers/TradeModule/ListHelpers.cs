@@ -30,12 +30,13 @@ public static class ListHelpers<T> where T : PKM, new()
 
         var allFiles = Directory.GetFiles(folderPath)
             .Select(Path.GetFileNameWithoutExtension)
+            .Where(file => file != null)
             .OrderBy(file => file)
-            .ToList();
+            .ToList()!;
 
         var filteredFiles = allFiles
-            .Where(file => string.IsNullOrWhiteSpace(filter) ||
-                   (file != null && file.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            .Where(file => file != null && (string.IsNullOrWhiteSpace(filter) ||
+                   file.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         if (filteredFiles.Count == 0)
@@ -110,8 +111,9 @@ public static class ListHelpers<T> where T : PKM, new()
 
             var files = Directory.GetFiles(folderPath)
                 .Select(Path.GetFileName)
+                .Where(x => x != null)
                 .OrderBy(x => x)
-                .ToList();
+                .ToList()!;
 
             if (index < 1 || index > files.Count)
             {
@@ -121,7 +123,7 @@ public static class ListHelpers<T> where T : PKM, new()
             }
 
             var selectedFile = files[index - 1];
-            var fileData = await File.ReadAllBytesAsync(Path.Combine(folderPath, selectedFile ?? string.Empty));
+            var fileData = await File.ReadAllBytesAsync(Path.Combine(folderPath, selectedFile!));
             var download = new Download<PKM>
             {
                 Data = EntityFormat.GetFromBytes(fileData),

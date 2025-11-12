@@ -91,7 +91,7 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         public int MaxDumpsPerTrade { get; set; } = 20;
 
         [Category(TradeConfig), Description("Dump Trade: Dumping routine will stop after spending x seconds in trade."), DisplayName("Maximum Dump Trade Time (seconds)")]
-        public int MaxDumpTradeTime { get; set; } = 180;
+        public int MaxDumpTradeTime { get; set; } = 45;
 
         [Category(TradeConfig), Description("Dump Trade: If enabled, Dumping routine will output legality check information to the user."), DisplayName("Dump Trade Legality Check")]
         public bool DumpTradeLegalityCheck { get; set; } = true;
@@ -153,7 +153,7 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         {
             if (!_useEmbeds)
             {
-                PreferredImageSize = ImageSize.Size128x128;
+                PreferredImageSize = ImageSize.Size256x256;
                 MoveTypeEmojis = false;
                 ShowScale = false;
                 ShowTeraType = false;
@@ -166,14 +166,14 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         }
 
         [Category(EmbedSettings), Description("Preferred Species Image Size for Embeds."), DisplayName("Species Image Size")]
-        public ImageSize PreferredImageSize { get; set; } = ImageSize.Size128x128;
+        public ImageSize PreferredImageSize { get; set; } = ImageSize.Size256x256;
 
         [Category(EmbedSettings), Description("Will show Move Type Icons next to moves in trade embed (Discord only). Requires user to upload the emojis to their server."), DisplayName("Show Move Type Emojis")]
         public bool MoveTypeEmojis { get; set; } = true;
 
         [Category(EmbedSettings), Description("Custom Emoji information for the move types."), DisplayName("Custom Type Emojis")]
-        public List<MoveTypeEmojiInfo> CustomTypeEmojis { get; set; } = new List<MoveTypeEmojiInfo>
-        {
+        public List<MoveTypeEmojiInfo> CustomTypeEmojis { get; set; } =
+        [
             new(MoveType.Bug),
             new(MoveType.Fire),
             new(MoveType.Flying),
@@ -193,7 +193,7 @@ public class TradeSettings : IBotStateSettings, ICountSettings
             new(MoveType.Poison),
             new(MoveType.Fairy),
             new(MoveType.Stellar)
-        };
+        ];
 
         [Category(EmbedSettings), Description("The full string for the male gender emoji."), DisplayName("Male Emoji")]
         public EmojiInfo MaleEmoji { get; set; } = new EmojiInfo();
@@ -217,8 +217,8 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         public bool UseTeraEmojis { get; set; } = true;
 
         [Category(EmbedSettings), Description("Tera Type Emoji information for the tera types."), DisplayName("Custom Tera Type Emojis")]
-        public List<TeraTypeEmojiInfo> TeraTypeEmojis { get; set; } = new List<TeraTypeEmojiInfo>
-        {
+        public List<TeraTypeEmojiInfo> TeraTypeEmojis { get; set; } =
+        [
             new(MoveType.Bug),
             new(MoveType.Fire),
             new(MoveType.Flying),
@@ -238,7 +238,7 @@ public class TradeSettings : IBotStateSettings, ICountSettings
             new(MoveType.Poison),
             new(MoveType.Fairy),
             new(MoveType.Stellar)
-        };
+        ];
 
         [Category(EmbedSettings), Description("Will show Scale in trade embed (SV & Discord only). Requires user to upload the emojis to their server."), DisplayName("Show Scale")]
         public bool ShowScale { get; set; } = true;
@@ -261,7 +261,7 @@ public class TradeSettings : IBotStateSettings, ICountSettings
         [Category(EmbedSettings), Description("Will show Nature in trade embed (Discord only)."), DisplayName("Show Nature")]
         public bool ShowNature { get; set; } = true;
 
-        [Category(EmbedSettings), Description("Will show Language in trade embed (Discord only)."), DisplayName("Show Language")]
+        [Category(EmbedSettings), Description("Will show PKM Language in trade embed (Discord only)."), DisplayName("Show Language")]
         public bool ShowLanguage { get; set; } = true;
 
         [Category(EmbedSettings), Description("Will show IVs in trade embed (Discord only)."), DisplayName("Show IVs")]

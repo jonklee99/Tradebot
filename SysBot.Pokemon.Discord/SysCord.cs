@@ -34,6 +34,8 @@ public sealed class SysCord<T> where T : PKM, new()
     private readonly Dictionary<ulong, ulong> _announcementMessageIds = [];
     private readonly DiscordSocketClient _client;
     private readonly CommandService _commands;
+    private readonly HashSet<ITradeBot> _connectedBots = [];
+    private readonly object _botConnectionLock = new object();
 
     private readonly IServiceProvider _services;
 
@@ -61,10 +63,48 @@ public sealed class SysCord<T> where T : PKM, new()
         {
             if (bot is ITradeBot tradeBot)
             {
-                tradeBot.ConnectionError += async (sender, ex) => await HandleBotStop();
-                tradeBot.ConnectionSuccess += async (sender, e) => await HandleBotStart();
+                tradeBot.ConnectionSuccess += async (sender, e) =>
+                {
+                    bool shouldHandleStart = false;
+
+                    lock (_botConnectionLock)
+                    {
+                        _connectedBots.Add(tradeBot);
+                        if (_connectedBots.Count == 1)
+                        {
+                            // First bot connected, handle start outside lock
+                            shouldHandleStart = true;
+                        }
+                    }
+
+                    if (shouldHandleStart)
+                    {
+                        await HandleBotStart();
+                    }
+                };
+
+                tradeBot.ConnectionError += async (sender, ex) =>
+                {
+                    bool shouldHandleStop = false;
+
+                    lock (_botConnectionLock)
+                    {
+                        _connectedBots.Remove(tradeBot);
+                        if (_connectedBots.Count == 0)
+                        {
+                            // All bots disconnected, handle stop outside lock
+                            shouldHandleStop = true;
+                        }
+                    }
+
+                    if (shouldHandleStop)
+                    {
+                        await HandleBotStop();
+                    }
+                };
             }
         }
+
         SysCordSettings.Manager = Manager;
         SysCordSettings.HubConfig = Hub.Config;
 
@@ -107,8 +147,6 @@ public sealed class SysCord<T> where T : PKM, new()
             // Again, log level:
             LogLevel = LogSeverity.Info,
 
-            // This makes commands get run on the task thread pool instead on the websocket read thread.
-            // This ensures long-running logic can't block the websocket connection.
             DefaultRunMode = RunMode.Async,
 
             // There's a few more properties you can set,
@@ -341,6 +379,34 @@ public sealed class SysCord<T> where T : PKM, new()
         }
     }
 
+    private void InitializeRecoveryNotifications()
+    {
+        if (!Hub.Config.Recovery.EnableRecovery)
+            return;
+
+        // Get the recovery service from the runner
+        var recoveryService = Runner.GetRecoveryService();
+        if (recoveryService == null)
+            return;
+
+        // Determine the notification channel
+        ulong? notificationChannelId = null;
+        if (Manager.WhitelistedChannels.List.Count > 0)
+        {
+            // Use the first whitelisted channel for notifications
+            notificationChannelId = Manager.WhitelistedChannels.List[0].ID;
+        }
+
+        // Initialize the recovery notification helper
+        var hubName = string.IsNullOrEmpty(Hub.Config.BotName) ? "SysBot" : Hub.Config.BotName;
+        RecoveryNotificationHelper.Initialize(_client, notificationChannelId, hubName);
+        
+        // Hook up the recovery events
+        RecoveryNotificationHelper.HookRecoveryEvents(recoveryService);
+        
+        LogUtil.LogInfo("Recovery notifications initialized for Discord", "Recovery");
+    }
+
     public async Task InitCommands()
     {
         var assembly = Assembly.GetExecutingAssembly();
@@ -384,11 +450,9 @@ public sealed class SysCord<T> where T : PKM, new()
 
         var app = await _client.GetApplicationInfoAsync().ConfigureAwait(false);
         Manager.Owner = app.Owner.Id;
-        if (!await TradeQueueResult.InitializeTradeQueueAsync(_client).ConfigureAwait(false))
-        {
-            await Task.Delay(3000, token);
-            return;
-        }
+
+        // Initialize recovery notifications if recovery is enabled
+        InitializeRecoveryNotifications();
         try
         {
             // Wait infinitely so your bot actually stays connected.
@@ -415,6 +479,7 @@ public sealed class SysCord<T> where T : PKM, new()
             _client?.Dispose();
         }
     }
+
     // If any services require the client, or the CommandService, or something else you keep on hand,
     // pass them as parameters into this method as needed.
     // If this method is getting pretty long, you can separate it out into another file using partials.
@@ -593,6 +658,12 @@ public sealed class SysCord<T> where T : PKM, new()
         // Restore Echoes
         EchoModule.RestoreChannels(_client, Hub.Config.Discord);
 
+        // Subscribe to queue status changes
+        QueueMonitor<T>.OnQueueStatusChanged = async (isFull, currentCount, maxCount) =>
+        {
+            await EchoModule.SendQueueStatusEmbedAsync(isFull, currentCount, maxCount).ConfigureAwait(false);
+        };
+
         // Restore Logging
         LogModule.RestoreLogging(_client, Hub.Config.Discord);
         TradeStartModule<T>.RestoreTradeStarting(_client);
@@ -699,7 +770,7 @@ public sealed class SysCord<T> where T : PKM, new()
                 return false;
 
             if (!result.IsSuccess)
-                await SysCord<T>.SafeSendMessageAsync(msg.Channel, result.ErrorReason).ConfigureAwait(false);
+                await SafeSendMessageAsync(msg.Channel, result.ErrorReason).ConfigureAwait(false);
 
             return true;
         }

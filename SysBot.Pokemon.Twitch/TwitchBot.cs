@@ -14,7 +14,7 @@ namespace SysBot.Pokemon.Twitch
 {
     public class TwitchBot<T> where T : PKM, new()
     {
-        internal static readonly List<TwitchQueue<T>> QueuePool = new();
+        internal static readonly List<TwitchQueue<T>> QueuePool = [];
 
         private static PokeTradeHub<T> Hub = default!;
 
@@ -119,6 +119,14 @@ namespace SysBot.Pokemon.Twitch
 
             var trainer = new PokeTradeTrainerInfo(name, ulong.Parse(e.WhisperMessage.UserId));
             var notifier = new TwitchTradeNotifier<T>(pk, trainer, code, e.WhisperMessage.Username, client, Channel, Hub.Config.Twitch);
+
+            // PLZA command-level block: prevent queuing if item is on PLZA blacklist
+            if (NonTradableItemsPLZA.IsPLZAMode(Hub) && NonTradableItemsPLZA.IsBlocked(pk))
+            {
+                var itemName = pk.HeldItem > 0 ? PKHeX.Core.GameInfo.GetStrings("en").Item[pk.HeldItem] : "(none)";
+                msg = $"@{name}: Trade blocked — the held item '{itemName}' cannot be traded in PLZA.";
+                return false;
+            }
             var tt = type == PokeRoutineType.SeedCheck ? PokeTradeType.Seed : PokeTradeType.Specific;
             var detail = new PokeTradeDetail<T>(pk, trainer, notifier, tt, code, sig == RequestSignificance.Favored);
             var uniqueTradeID = GenerateUniqueTradeID();
@@ -129,6 +137,14 @@ namespace SysBot.Pokemon.Twitch
             if (added == QueueResultAdd.AlreadyInQueue)
             {
                 msg = $"@{name}: Sorry, you are already in the queue.";
+                return false;
+            }
+
+            if (added == QueueResultAdd.NotAllowedItem)
+            {
+                var held = pk.HeldItem;
+                var itemName = held > 0 ? PKHeX.Core.GameInfo.GetStrings("en").Item[held] : "(none)";
+                msg = $"@{name}: Trade blocked — the held item '{itemName}' cannot be traded in PLZA.";
                 return false;
             }
 

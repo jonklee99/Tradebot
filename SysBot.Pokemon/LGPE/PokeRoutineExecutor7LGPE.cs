@@ -51,26 +51,6 @@ public abstract class PokeRoutineExecutor7LGPE : PokeRoutineExecutor<PB7>
         Log("Closed out of the game!");
     }
 
-    public int GetAdvancesPassed(ulong prevs0, ulong prevs1, ulong news0, ulong news1)
-    {
-        if (prevs0 == news0 && prevs1 == news1)
-            return 0;
-
-        var rng = new Xoroshiro128Plus(prevs0, prevs1);
-        for (int i = 0; ; i++)
-        {
-            rng.Next();
-            var (s0, s1) = rng.GetState();
-            if (s0 == news0 && s1 == news1)
-                return i + 1;
-            if (i > 500)
-            {
-                Log("Could not find the next RNG state in 500 advances!");
-                return -1;
-            }
-        }
-    }
-
     public ulong GetBoxOffset(int box) => BoxStart + (ulong)((SlotSize + GapSize) * SlotCount * box);
 
     public async Task<SAV7b> GetFakeTrainerSAV(CancellationToken token)
@@ -256,8 +236,9 @@ public abstract class PokeRoutineExecutor7LGPE : PokeRoutineExecutor<PB7>
             await Task.Delay(2_000 + timing.ExtraTimeCheckGame, token).ConfigureAwait(false);
         }
 
-        Log("Restarting the game!");
+        await Click(A, 0_600, token).ConfigureAwait(false);
 
+        Log("Restarting the game!");
         await Task.Delay(4_000 + timing.ExtraTimeLoadGame, token).ConfigureAwait(false);
         await DetachController(token).ConfigureAwait(false);
 

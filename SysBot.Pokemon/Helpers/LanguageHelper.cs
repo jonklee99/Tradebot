@@ -31,6 +31,7 @@ public static class LanguageHelper
                     "italian" or "ita" => (byte)LanguageID.Italian,
                     "german" or "ger" or "deu" => (byte)LanguageID.German,
                     "spanish" or "spa" or "esp" => (byte)LanguageID.Spanish,
+                    "spanish-latam" or "spanishl" or "es-419" or "latam" => (byte)LanguageID.SpanishL,
                     "korean" or "kor" or "한국어" => (byte)LanguageID.Korean,
                     "chinese" or "chs" or "中文" => (byte)LanguageID.ChineseS,
                     "cht" => (byte)LanguageID.ChineseT,
@@ -47,7 +48,8 @@ public static class LanguageHelper
         // No explicit language found, use detection
         byte detectedLanguage = detectLanguageFunc(content);
 
-        if (detectedLanguage == (byte)LanguageID.English || detectedLanguage == 0)
+        // If no language was detected (0), use the config language setting
+        if (detectedLanguage == 0)
         {
             return configLanguage;
         }
@@ -63,6 +65,7 @@ public static class LanguageHelper
             Type t when t == typeof(PB8) => TrainerSettings.GetSavedTrainerData(GameVersion.BDSP, 8, lang: language),
             Type t when t == typeof(PA8) => TrainerSettings.GetSavedTrainerData(GameVersion.PLA, 8, lang: language),
             Type t when t == typeof(PK9) => TrainerSettings.GetSavedTrainerData(GameVersion.SV, 9, lang: language),
+            Type t when t == typeof(PA9) => TrainerSettings.GetSavedTrainerData(GameVersion.ZA, 9, lang: language),
             Type t when t == typeof(PB7) => TrainerSettings.GetSavedTrainerData(GameVersion.GE, 7, lang: language),
             _ => throw new ArgumentException("Type does not have a recognized trainer fetch.", typeof(T).Name)
         };

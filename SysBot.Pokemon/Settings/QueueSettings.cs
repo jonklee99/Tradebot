@@ -49,10 +49,13 @@ public class QueueSettings
 
     // General
     [Category(FeatureToggle), Description("Prevents adding users if there are this many users in the queue already.")]
-    public int MaxQueueCount { get; set; } = 999;
+    public int MaxQueueCount { get; set; } = 30;
 
     [Category(FeatureToggle), Description("Determines when the queue is turned on and off.")]
     public QueueOpening QueueToggleMode { get; set; } = QueueOpening.Threshold;
+
+    [Category(FeatureToggle), Description("When enabled, sends an embed notification to announcement channels when the queue closes due to max capacity.")]
+    public bool NotifyOnQueueClose { get; set; } = true;
 
     [Category(QueueToggle), Description("Threshold Mode: Count of users that will cause the queue to close.")]
     public int ThresholdLock { get; set; } = 30;

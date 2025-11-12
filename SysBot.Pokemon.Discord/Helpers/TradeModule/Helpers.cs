@@ -38,12 +38,27 @@ public static class Helpers<T> where T : PKM, new()
         return Task.FromResult(true);
     }
 
-     public static async Task ReplyAndDeleteAsync(SocketCommandContext context, string message, int delaySeconds, IMessage? messageToDelete = null)
+    public static async Task ReplyAndDeleteAsync(SocketCommandContext context, string message, int delaySeconds, IMessage? messageToDelete = null)
     {
         try
         {
             var sentMessage = await context.Channel.SendMessageAsync(message).ConfigureAwait(false);
-            _ = DeleteMessagesAfterDelayAsync(sentMessage, messageToDelete ?? context.Message, delaySeconds);
+
+            // Check if message deletion is enabled in settings
+            if (!Info.Hub.Config.Discord.MessageDeletionEnabled)
+                return;
+
+            // Use configured delay from settings instead of hardcoded value
+            var configuredDelay = Info.Hub.Config.Discord.ErrorMessageDeleteDelaySeconds;
+
+            // Determine which user message to delete based on settings
+            IMessage? userMessageToDelete = null;
+            if (Info.Hub.Config.Discord.DeleteUserCommandMessages)
+            {
+                userMessageToDelete = messageToDelete ?? context.Message;
+            }
+
+            _ = DeleteMessagesAfterDelayAsync(sentMessage, userMessageToDelete, configuredDelay);
         }
         catch (Exception ex)
         {
@@ -55,14 +70,35 @@ public static class Helpers<T> where T : PKM, new()
     {
         try
         {
-            await Task.Delay(delaySeconds * 1000);
+            // Check if message deletion is enabled in settings
+            if (!Info.Hub.Config.Discord.MessageDeletionEnabled)
+                return;
+
+            // Use configured delay from settings
+            var configuredDelay = Info.Hub.Config.Discord.ErrorMessageDeleteDelaySeconds;
+            await Task.Delay(configuredDelay * 1000);
 
             var tasks = new List<Task>();
 
+            // Check if sentMessage is a bot message or user message
+            // In some places, user messages are passed as the first parameter
             if (sentMessage != null)
-                tasks.Add(TryDeleteMessageAsync(sentMessage));
+            {
+                // If it's a user message and DeleteUserCommandMessages is false, skip it
+                if (sentMessage is IUserMessage userMsg && userMsg.Author.IsBot == false)
+                {
+                    if (Info.Hub.Config.Discord.DeleteUserCommandMessages)
+                        tasks.Add(TryDeleteMessageAsync(sentMessage));
+                }
+                else
+                {
+                    // It's a bot message, always delete it
+                    tasks.Add(TryDeleteMessageAsync(sentMessage));
+                }
+            }
 
-            if (messageToDelete != null)
+            // Only delete user message if setting is enabled
+            if (messageToDelete != null && Info.Hub.Config.Discord.DeleteUserCommandMessages)
                 tasks.Add(TryDeleteMessageAsync(messageToDelete));
 
             await Task.WhenAll(tasks);
@@ -107,11 +143,18 @@ public static class Helpers<T> where T : PKM, new()
 
         var template = AutoLegalityWrapper.GetTemplate(set);
 
-        if (set.InvalidLines.Count != 0)
+        // Filter out batch commands (.) and filters (~) from invalid lines - these are handled by ALM
+        var actualInvalidLines = set.InvalidLines.Where(line =>
+        {
+            var text = line.Value?.Trim();
+            return !string.IsNullOrEmpty(text) && !text.StartsWith('.') && !text.StartsWith('~');
+        }).ToList();
+
+        if (actualInvalidLines.Count != 0)
         {
             return Task.FromResult(new ProcessedPokemonResult<T>
             {
-                Error = $"Unable to parse Showdown Set:\n{string.Join("\n", set.InvalidLines)}",
+                Error = $"Unable to parse Showdown Set:\n{string.Join("\n", actualInvalidLines.Select(l => l.Value))}",
                 ShowdownSet = set
             });
         }
@@ -143,7 +186,6 @@ public static class Helpers<T> where T : PKM, new()
             });
         }
 
-        var la = new LegalityAnalysis(pkm);
         var spec = GameInfo.Strings.Species[template.Species];
 
         // Apply standard item logic only for non-eggs
@@ -167,6 +209,7 @@ public static class Helpers<T> where T : PKM, new()
             }
         }
 
+        var la = new LegalityAnalysis(pkm);
         if (pkm is not T pk || !la.Valid)
         {
             var reason = GetFailureReason(result, spec);
@@ -195,7 +238,9 @@ public static class Helpers<T> where T : PKM, new()
             }
         }
 
-        var isNonNative = la.EncounterOriginal.Context != pk.Context || pk.GO;
+        // For SWSH (PK8), GO Pokemon can have AutoOT applied, so don't mark them as non-native
+        la = new LegalityAnalysis(pk);
+        var isNonNative = la.EncounterOriginal.Context != pk.Context || (pk.GO && pk is not PK8);
 
         return Task.FromResult(new ProcessedPokemonResult<T>
         {
@@ -225,7 +270,7 @@ public static class Helpers<T> where T : PKM, new()
         pk.Language = finalLanguage;
 
         if (!set.Nickname.Equals(pk.Nickname) && string.IsNullOrEmpty(set.Nickname))
-            pk.ClearNickname();
+            _ = pk.ClearNickname();
 
         pk.ResetPartyStats();
     }
@@ -264,7 +309,7 @@ public static class Helpers<T> where T : PKM, new()
 
         if (!string.IsNullOrEmpty(result.LegalizationHint))
         {
-            embedBuilder.AddField("Hint", result.LegalizationHint);
+            _ = embedBuilder.AddField("Hint", result.LegalizationHint);
         }
 
         string userMention = context.User.Mention;
@@ -305,7 +350,7 @@ public static class Helpers<T> where T : PKM, new()
         var attachment = context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
         {
-            await context.Channel.SendMessageAsync("No attachment provided!").ConfigureAwait(false);
+            _ = await context.Channel.SendMessageAsync("No attachment provided!").ConfigureAwait(false);
             return null;
         }
 
@@ -314,7 +359,7 @@ public static class Helpers<T> where T : PKM, new()
 
         if (pk == null)
         {
-            await context.Channel.SendMessageAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
+            _ = await context.Channel.SendMessageAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
             return null;
         }
 
@@ -383,28 +428,31 @@ public static class Helpers<T> where T : PKM, new()
         if (Info.Hub.Config.Legality.DisallowNonNatives && isNonNative)
         {
             string speciesName = SpeciesName.GetSpeciesName(pk!.Species, (int)LanguageID.English);
-            await context.Channel.SendMessageAsync($"This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.").ConfigureAwait(false);
+            _ = await context.Channel.SendMessageAsync($"This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.").ConfigureAwait(false);
             return;
         }
 
         if (Info.Hub.Config.Legality.DisallowTracked && pk is IHomeTrack { HasTracker: true })
         {
             string speciesName = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
-            await context.Channel.SendMessageAsync($"This {speciesName} file is tracked by HOME, and cannot be traded!").ConfigureAwait(false);
+            _ = await context.Channel.SendMessageAsync($"This {speciesName} file is tracked by HOME, and cannot be traded!").ConfigureAwait(false);
             return;
         }
 
         // Handle past gen file requests
-        if (!la.Valid && la.Results.Any(m => m.Identifier is CheckIdentifier.Memory))
+        if (!la.Valid)
         {
-            var clone = (T)pk!.Clone();
-            clone.HandlingTrainerName = pk.OriginalTrainerName;
-            clone.HandlingTrainerGender = pk.OriginalTrainerGender;
-            if (clone is PK8 or PA8 or PB8 or PK9)
-                ((dynamic)clone).HandlingTrainerLanguage = (byte)pk.Language;
-            clone.CurrentHandler = 1;
-            la = new LegalityAnalysis(clone);
-            if (la.Valid) pk = clone;
+            if (la.Results.Any(m => m.Identifier is CheckIdentifier.Memory))
+            {
+                var clone = (T)pk!.Clone();
+                clone.HandlingTrainerName = pk.OriginalTrainerName;
+                clone.HandlingTrainerGender = pk.OriginalTrainerGender;
+                if (clone is PK8 or PA8 or PB8 or PK9)
+                    ((dynamic)clone).HandlingTrainerLanguage = (byte)pk.Language;
+                clone.CurrentHandler = 1;
+                la = new LegalityAnalysis(clone);
+                if (la.Valid) pk = clone;
+            }
         }
 
         await QueueHelper<T>.AddToQueueAsync(context, code, trainerName, sig, pk!, PokeRoutineType.LinkTrade,

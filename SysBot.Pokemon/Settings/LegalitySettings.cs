@@ -18,7 +18,7 @@ public class LegalitySettings
     public bool AllowBatchCommands { get; set; } = true;
 
     [Category(Generate), Description("Allow users to submit custom OT, TID, SID, and OT Gender in Showdown sets.")]
-    public bool AllowTrainerDataOverride { get; set; } = false;
+    public bool AllowTrainerDataOverride { get; set; } = true;
 
     [Category(Generate), Description("Prevents trading Pokémon that require a HOME Tracker, even if the file has one already."), DisplayName("Disallow Non-Native Pokémon")]
     public bool DisallowNonNatives { get; set; } = false;
@@ -73,12 +73,12 @@ public class LegalitySettings
         EncounterTypeGroup.Trade,
     ];
 
-    [Category(Generate), Description("If PrioritizeGame is set to \"True\", uses PriorityOrder to start looking for encounters.")]
+    [Category(Generate), Description("If PrioritizeGame is set to \"True\", uses PriorityOrder to start looking for encounters. If \"False\", uses newest game as the version. It is recommended to leave this as \"True\".")]
     public bool PrioritizeGame { get; set; } = false;
 
     [Category(Generate), Description("The order of GameVersions ALM will attempt to legalize from.")]
     public List<GameVersion> PriorityOrder { get; set; } =
-        [.. Enum.GetValues<GameVersion>().Where(ver => ver > GameVersion.Any && ver <= (GameVersion)51)];
+        [.. Enum.GetValues<GameVersion>().Where(ver => ver > GameVersion.Any && ver <= (GameVersion)52)];
 
     // Misc
     [Browsable(false)]

@@ -167,7 +167,7 @@ public abstract class PokeRoutineExecutor8BS : PokeRoutineExecutor<PB8>
 
     public async Task ReOpenGame(PokeTradeHubConfig config, CancellationToken token)
     {
-        Log("Error detected, restarting the game!!");
+        Log("Error detected, restarting the game!");
         await CloseGame(config, token).ConfigureAwait(false);
         await StartGame(config, token).ConfigureAwait(false);
     }
@@ -214,27 +214,47 @@ public abstract class PokeRoutineExecutor8BS : PokeRoutineExecutor<PB8>
             await Task.Delay(2_000 + timing.ExtraTimeCheckGame, token).ConfigureAwait(false);
         }
 
+        await Click(A, 0_600, token).ConfigureAwait(false);
+
         Log("Restarting the game!");
 
-        // Switch Logo lag, skip cutscene, game load screen
+        // Wait for game to load
         await Task.Delay(22_000 + timing.ExtraTimeLoadGame, token).ConfigureAwait(false);
 
         for (int i = 0; i < 10; i++)
+        {
             await Click(A, 1_000, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested) return;
+        }
 
-        var timer = 60_000;
+        var totalWaitTime = 0;
+        var maxWaitTime = 60_000; // 1 minute
         while (!await IsSceneID(SceneID_Field, token).ConfigureAwait(false))
         {
-            await Task.Delay(1_000, token).ConfigureAwait(false);
-            timer -= 1_000;
+            if (token.IsCancellationRequested) return;
 
-            // We haven't made it back to overworld after a minute, so press A every 6 seconds hoping to restart the game.
-            // Don't risk it if hub is set to avoid updates.
-            if (timer <= 0 && !timing.AvoidSystemUpdate)
+            await Task.Delay(1_000, token).ConfigureAwait(false);
+            totalWaitTime += 1_000;
+
+            if (totalWaitTime >= maxWaitTime)
             {
-                Log("Still not in the game, initiating rescue protocol!");
-                while (!await IsSceneID(SceneID_Field, token).ConfigureAwait(false))
-                    await Click(A, 6_000, token).ConfigureAwait(false);
+                if (!timing.AvoidSystemUpdate)
+                {
+                    Log("Still not in the game, initiating rescue protocol!");
+                    int retries = 0;
+                    int maxRetries = 10;
+                    while (!await IsSceneID(SceneID_Field, token).ConfigureAwait(false))
+                    {
+                        if (token.IsCancellationRequested) return;
+                        if (retries >= maxRetries)
+                        {
+                            Log("Max retries reached while trying to start the game.");
+                            throw new Exception("Unable to start the game after multiple attempts.");
+                        }
+                        await Click(A, 6_000, token).ConfigureAwait(false);
+                        retries++;
+                    }
+                }
                 break;
             }
         }

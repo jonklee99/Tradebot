@@ -131,6 +131,15 @@ public class DiscordSettings
     [Category(Operation), Description("Returns PKMs of Pokémon shown in the trade to the user.")]
     public bool ReturnPKMs { get; set; } = true;
 
+    [Category(Operation), Description("When enabled, the bot will automatically delete error messages and user commands after a delay. Disable to keep all messages permanently.")]
+    public bool MessageDeletionEnabled { get; set; } = true;
+
+    [Category(Operation), Description("Number of seconds to wait before deleting bot error/response messages. Only applies if MessageDeletionEnabled is true.")]
+    public int ErrorMessageDeleteDelaySeconds { get; set; } = 12;
+
+    [Category(Operation), Description("When enabled, user command messages will be deleted along with bot responses. Disable to keep user commands visible.")]
+    public bool DeleteUserCommandMessages { get; set; } = true;
+
     [Category(Roles), Description("Users with this role are allowed to enter the Clone queue.")]
     public RemoteControlAccessList RoleCanClone { get; set; } = new() { AllowIfEmpty = true };
 

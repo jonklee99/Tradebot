@@ -24,7 +24,7 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
         // We can optionally log this update
         if (TotalBatchTrades > 1)
         {
-            LogUtil.LogInfo($"Batch trade progress: {currentBatchNumber}/{TotalBatchTrades} - {GameInfo.GetStrings("en").Species[currentPokemon.Species]}", "BatchTracker");
+            LogUtil.LogInfo("BatchTracker", $"Batch trade progress: {currentBatchNumber}/{TotalBatchTrades} - {GameInfo.GetStrings("en").Species[currentPokemon.Species]}");
         }
     }
 
@@ -36,7 +36,7 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
             TotalBatchTrades = info.TotalBatchTrades;
             message = $"[Trade {BatchTradeNumber}/{TotalBatchTrades}] {message}";
         }
-        LogUtil.LogInfo(message, routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, message);
     }
 
     public void SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, PokeTradeSummary message)
@@ -52,20 +52,20 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
             msg = $"[Trade {BatchTradeNumber}/{TotalBatchTrades}] {msg}";
         }
 
-        LogUtil.LogInfo(msg, routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, msg);
     }
 
     public void SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, T result, string message)
     {
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Trade {BatchTradeNumber}/{info.TotalBatchTrades}] " : "";
-        LogUtil.LogInfo($"{batchInfo}Notifying {info.Trainer.TrainerName} about their {GameInfo.GetStrings("en").Species[result.Species]}", routine.Connection.Label);
-        LogUtil.LogInfo($"{batchInfo}{message}", routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Notifying {info.Trainer.TrainerName} about their {GameInfo.GetStrings("en").Species[result.Species]}");
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}{message}");
     }
 
     public void TradeCanceled(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, PokeTradeResult msg)
     {
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Batch trade {BatchTradeNumber}/{info.TotalBatchTrades}] " : "";
-        LogUtil.LogInfo($"{batchInfo}Canceling trade with {info.Trainer.TrainerName}, because {msg}.", routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Canceling trade with {info.Trainer.TrainerName}, because {msg}.");
         OnFinish?.Invoke(routine);
     }
 
@@ -77,7 +77,7 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
             ledyname = $" ({result.Nickname})";
 
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Trade {BatchTradeNumber}/{info.TotalBatchTrades}] " : "";
-        LogUtil.LogInfo($"{batchInfo}Finished trading {info.Trainer.TrainerName} {GameInfo.GetStrings("en").Species[info.TradeData.Species]} for {GameInfo.GetStrings("en").Species[result.Species]}{ledyname}", routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Finished trading {info.Trainer.TrainerName} {GameInfo.GetStrings("en").Species[info.TradeData.Species]} for {GameInfo.GetStrings("en").Species[result.Species]}{ledyname}");
 
         // Only invoke OnFinish for single trades or the last trade in a batch
         if (info.TotalBatchTrades <= 1 || BatchTradeNumber == info.TotalBatchTrades)
@@ -89,12 +89,12 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
     public void TradeInitialize(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info)
     {
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Batch trade starting - {info.TotalBatchTrades} total] " : "";
-        LogUtil.LogInfo($"{batchInfo}Starting trade loop for {info.Trainer.TrainerName}, sending {GameInfo.GetStrings("en").Species[info.TradeData.Species]}", routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Starting trade loop for {info.Trainer.TrainerName}, sending {GameInfo.GetStrings("en").Species[info.TradeData.Species]}");
     }
 
     public void TradeSearching(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info)
     {
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Trade {BatchTradeNumber}/{info.TotalBatchTrades}] " : "";
-        LogUtil.LogInfo($"{batchInfo}Searching for trade with {info.Trainer.TrainerName}, sending {GameInfo.GetStrings("en").Species[info.TradeData.Species]}", routine.Connection.Label);
+        LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Searching for trade with {info.Trainer.TrainerName}, sending {GameInfo.GetStrings("en").Species[info.TradeData.Species]}");
     }
 }

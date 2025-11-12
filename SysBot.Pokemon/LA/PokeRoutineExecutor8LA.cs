@@ -202,6 +202,8 @@ public abstract class PokeRoutineExecutor8LA : PokeRoutineExecutor<PA8>
             await Task.Delay(2_000 + timing.ExtraTimeCheckGame, token).ConfigureAwait(false);
         }
 
+        await Click(A, 0_600, token).ConfigureAwait(false);
+
         Log("Restarting the game!");
 
         // Switch Logo and game load screen

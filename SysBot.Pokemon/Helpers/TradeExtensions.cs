@@ -1,12 +1,12 @@
 using PKHeX.Core;
 using PKHeX.Core.AutoMod;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using static SysBot.Pokemon.TradeSettings;
 
 namespace SysBot.Pokemon.Helpers;
+
 public abstract class TradeExtensions<T> where T : PKM, new()
 {
     public static readonly string[] MarkTitle =
@@ -217,7 +217,18 @@ public abstract class TradeExtensions<T> where T : PKM, new()
             else if (ribbonSetMark.RibbonMarkAlpha)
             {
                 result = RibbonIndex.MarkAlpha;
-                markTitle = " The Former Alpha";
+
+                // For PA9 (PLZA), check if the Pokemon is native to determine the correct title
+                if (pk is PA9 pa9)
+                {
+                    var la = new LegalityAnalysis(pa9);
+                    bool isNative = la.EncounterOriginal.Context == pa9.Context;
+                    markTitle = isNative ? " The Alpha" : " The Former Alpha";
+                }
+                else
+                {
+                    markTitle = " The Former Alpha";
+                }
                 return true;
             }
             else if (ribbonSetMark.RibbonMarkTitan)
@@ -382,7 +393,7 @@ public abstract class TradeExtensions<T> where T : PKM, new()
         }
 
         // Split the remaining text into words
-        var words = firstLine.Split(new[] { ' ', '(' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = firstLine.Split([' ', '('], StringSplitOptions.RemoveEmptyEntries);
 
         // Check if any word is exactly "Egg" (case-insensitive)
         return words.Any(word => string.Equals(word, "Egg", StringComparison.OrdinalIgnoreCase));
@@ -394,7 +405,7 @@ public abstract class TradeExtensions<T> where T : PKM, new()
         var batchMatch = Regex.Match(content, @"\.Language=(\d+)");
         if (batchMatch.Success && byte.TryParse(batchMatch.Groups[1].Value, out byte langCode))
         {
-            return langCode >= 1 && langCode <= 10 ? langCode : (byte)2; // Validate range and default to English if invalid
+            return langCode >= 1 && langCode <= 11 ? langCode : (byte)2; // Validate range and default to English if invalid
         }
 
         // Check for explicit language specification
@@ -412,6 +423,7 @@ public abstract class TradeExtensions<T> where T : PKM, new()
                     "italian" or "italiano" or "ita" or "it" => 4,
                     "german" or "deutsch" or "deu" or "de" => 5,
                     "spanish" or "español" or "spa" or "es" => 7,
+                    "spanish-latam" or "spanishl" or "es-419" or "latam" => 11,
                     "japanese" or "日本語" or "jpn" or "ja" => 1,
                     "korean" or "한국어" or "kor" or "ko" => 8,
                     "chinese simplified" or "中文简体" or "chs" or "zh-cn" => 9,
@@ -489,8 +501,8 @@ public abstract class TradeExtensions<T> where T : PKM, new()
         {
             return 10; // Chinese Traditional
         }
-        // Default to English
-        return 2;
+        // No language detected
+        return 0;
     }
 }
 

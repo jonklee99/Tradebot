@@ -644,6 +644,14 @@ public class PokeTradeBotLA(PokeTradeHub<PA8> Hub, PokeBotState Config) : PokeRo
 
     private async Task<PokeTradeResult> PerformLinkCodeTrade(SAV8LA sav, PokeTradeDetail<PA8> poke, CancellationToken token)
     {
+        // Check if trade was canceled by user
+        if (poke.IsCanceled)
+        {
+            Log($"Trade for {poke.Trainer.TrainerName} was canceled by user.");
+            poke.TradeCanceled(this, PokeTradeResult.UserCanceled);
+            return PokeTradeResult.UserCanceled;
+        }
+
         // Update Barrier Settings
         UpdateBarrier(poke.IsSynchronized);
         poke.TradeInitialize(this);
@@ -1306,18 +1314,6 @@ public class PokeTradeBotLA(PokeTradeHub<PA8> Hub, PokeBotState Config) : PokeRo
 
         // Check if the Pokémon is from a Mystery Gift
         bool isMysteryGift = toSend.FatefulEncounter;
-
-        // Check if Mystery Gift has legitimate preset OT/TID/SID (not PKHeX defaults)
-        bool hasDefaultTrainerInfo = toSend.OriginalTrainerName.Equals("Gengar", StringComparison.OrdinalIgnoreCase) &&
-                                    toSend.TID16 == 12345 &&
-                                    toSend.SID16 == 54321;
-
-        if (isMysteryGift && !hasDefaultTrainerInfo)
-        {
-            Log("Mystery Gift with preset OT/TID/SID detected. Skipping AutoOT entirely.");
-            return toSend;
-        }
-
         var cln = toSend.Clone();
 
         if (isMysteryGift)

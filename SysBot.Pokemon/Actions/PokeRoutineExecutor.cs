@@ -27,7 +27,7 @@ public abstract class PokeRoutineExecutor<T>(IConsoleBotManaged<IConsoleConnecti
         Directory.CreateDirectory(dir);
         var fn = Path.Combine(dir, PathUtil.CleanFileName(pk.FileName));
         File.WriteAllBytes(fn, pk.DecryptedPartyData);
-        LogUtil.LogInfo($"Saved file: {fn}", "Dump");
+        LogUtil.LogInfo("Dump", $"Saved file: {fn}");
     }
 
     public static void LogSuccessfulTrades(PokeTradeDetail<T> poke, ulong TrainerNID, string TrainerName)

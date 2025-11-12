@@ -1,5 +1,6 @@
 using PKHeX.Core;
 using SysBot.Base;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,6 +9,8 @@ namespace SysBot.Pokemon;
 public class QueueMonitor<T>(PokeTradeHub<T> Hub)
     where T : PKM, new()
 {
+    // Action to be called when queue status changes: (isFull, currentCount, maxCount)
+    public static Action<bool, int, int>? OnQueueStatusChanged { get; set; }
     public async Task MonitorOpenQueue(CancellationToken token)
     {
         var queues = Hub.Queues.Info;
@@ -55,19 +58,29 @@ public class QueueMonitor<T>(PokeTradeHub<T> Hub)
         return true;
     }
 
-    private static bool CheckThreshold(QueueSettings settings, TradeQueueInfo<T> queues)
+    private bool CheckThreshold(QueueSettings settings, TradeQueueInfo<T> queues)
     {
         if (settings.CanQueue)
         {
             if (queues.Count >= settings.ThresholdLock)
+            {
                 queues.ToggleQueue();
+                // Notify that queue is now full/closed
+                if (settings.NotifyOnQueueClose)
+                    OnQueueStatusChanged?.Invoke(true, queues.Count, settings.MaxQueueCount);
+            }
             else
                 return false;
         }
         else
         {
             if (queues.Count <= settings.ThresholdUnlock)
+            {
                 queues.ToggleQueue();
+                // Notify that queue is now open
+                if (settings.NotifyOnQueueClose)
+                    OnQueueStatusChanged?.Invoke(false, queues.Count, settings.MaxQueueCount);
+            }
             else
                 return false;
         }
@@ -75,7 +88,7 @@ public class QueueMonitor<T>(PokeTradeHub<T> Hub)
         return true;
     }
 
-    private static bool UpdateCanQueue(QueueOpening mode, QueueSettings settings, TradeQueueInfo<T> queues, float secWaited)
+    private bool UpdateCanQueue(QueueOpening mode, QueueSettings settings, TradeQueueInfo<T> queues, float secWaited)
     {
         return mode switch
         {

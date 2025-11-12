@@ -216,7 +216,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
         int completedTrades = 0;
         var startingDetail = poke;
         var originalTrainerID = startingDetail.Trainer.ID;
-        _ = new byte[8]; // Track the last offered Pokemon between trades
+        byte[] lastOffered = new byte[8]; // Track the last offered Pokemon between trades
 
         var tradesToProcess = poke.BatchTrades ?? [poke.TradeData];
         var totalBatchTrades = tradesToProcess.Count;
@@ -342,7 +342,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
         poke.SendNotification(this, $"Found Link Trade partner: {trainerName}. **TID**: {trainerTID} **SID**: {trainerSID}");
 
         // Initialize lastOffered state for tracking between trades
-        _ = await Connection.ReadBytesAsync(LinkTradePartnerPokemonOffset, 8, token).ConfigureAwait(false);
+        lastOffered = await Connection.ReadBytesAsync(LinkTradePartnerPokemonOffset, 8, token).ConfigureAwait(false);
 
         // Partner reputation check
         var partnerCheck = CheckPartnerReputation(this, poke, trainerNID, trainerName, AbuseSettings, token);
@@ -643,6 +643,14 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
 
     private async Task<PokeTradeResult> PerformLinkCodeTrade(SAV8SWSH sav, PokeTradeDetail<PK8> poke, CancellationToken token)
     {
+        // Check if trade was canceled by user
+        if (poke.IsCanceled)
+        {
+            Log($"Trade for {poke.Trainer.TrainerName} was canceled by user.");
+            poke.TradeCanceled(this, PokeTradeResult.UserCanceled);
+            return PokeTradeResult.UserCanceled;
+        }
+
         // Update Barrier Settings
         UpdateBarrier(poke.IsSynchronized);
         poke.TradeInitialize(this);
@@ -1584,17 +1592,44 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
         if (toSend.Version == GameVersion.GO)
         {
             var goClone = toSend.Clone();
-            goClone.OriginalTrainerName = trainerName;
 
-            // Update OT trash to match the new OT name
-            ClearOTTrash(goClone, trainerName);
+            // Check if GO Pokemon has a home tracker
+            if (toSend is IHomeTrack { HasTracker: true })
+            {
+                // Can only change OT name if it has a home tracker
+                goClone.OriginalTrainerName = trainerName;
+                ClearOTTrash(goClone, trainerName);
 
-            if (!toSend.ChecksumValid)
-                goClone.RefreshChecksum();
+                if (!toSend.ChecksumValid)
+                    goClone.RefreshChecksum();
 
-            Log("Applied only OT name to Pokémon from GO.");
-            await SetBoxPokemon(goClone, 0, 0, token, sav).ConfigureAwait(false);
-            return goClone;
+                Log("Applied only OT name to Pokémon from GO (has HOME tracker).");
+                await SetBoxPokemon(goClone, 0, 0, token, sav).ConfigureAwait(false);
+                return goClone;
+            }
+            else
+            {
+                // No home tracker: can apply OT, TID, and SID
+                var goData = await Connection.ReadBytesAsync(LinkTradePartnerNameOffset - 0x8, 8, token).ConfigureAwait(false);
+                var goTidSid = BitConverter.ToUInt32(goData, 0);
+
+                goClone.OriginalTrainerName = trainerName;
+                goClone.OriginalTrainerGender = goData[6];
+                goClone.TrainerTID7 = goTidSid % 1_000_000;
+                goClone.TrainerSID7 = goTidSid / 1_000_000;
+
+                ClearOTTrash(goClone, trainerName);
+
+                if (toSend.IsShiny)
+                    goClone.PID = (uint)((goClone.TID16 ^ goClone.SID16 ^ (goClone.PID & 0xFFFF) ^ toSend.ShinyXor) << 16) | (goClone.PID & 0xFFFF);
+
+                if (!toSend.ChecksumValid)
+                    goClone.RefreshChecksum();
+
+                Log("Applied OT, TID, and SID to Pokémon from GO (no HOME tracker).");
+                await SetBoxPokemon(goClone, 0, 0, token, sav).ConfigureAwait(false);
+                return goClone;
+            }
         }
 
         if (toSend is IHomeTrack pk && pk.HasTracker)
@@ -1605,17 +1640,6 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
 
         // Check if the Pokémon is from a Mystery Gift
         bool isMysteryGift = toSend.FatefulEncounter;
-
-        // Check if Mystery Gift has legitimate preset OT/TID/SID (not PKHeX defaults)
-        bool hasDefaultTrainerInfo = toSend.OriginalTrainerName.Equals("Gengar", StringComparison.OrdinalIgnoreCase) &&
-                                    toSend.TID16 == 12345 &&
-                                    toSend.SID16 == 54321;
-
-        if (isMysteryGift && !hasDefaultTrainerInfo)
-        {
-            Log("Mystery Gift with preset OT/TID/SID detected. Skipping AutoOT entirely.");
-            return toSend;
-        }
 
         var data = await Connection.ReadBytesAsync(LinkTradePartnerNameOffset - 0x8, 8, token).ConfigureAwait(false);
         var tidsid = BitConverter.ToUInt32(data, 0);

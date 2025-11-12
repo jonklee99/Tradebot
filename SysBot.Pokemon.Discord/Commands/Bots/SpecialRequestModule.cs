@@ -3,6 +3,7 @@ using Discord.Commands;
 using Discord.Net;
 using Discord.WebSocket;
 using PKHeX.Core;
+using SysBot.Pokemon.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -183,6 +184,7 @@ namespace SysBot.Pokemon.Discord
                 "pla" or "la" => EncounterEvent.MGDB_G8A,
                 "bdsp" => EncounterEvent.MGDB_G8B,
                 "9" or "gen9" => EncounterEvent.MGDB_G9,
+                "plza" or "9a" or "gen9a" => EncounterEvent.MGDB_G9A,
                 _ => null,
             };
         }
@@ -258,10 +260,9 @@ namespace SysBot.Pokemon.Discord
                 await userMessage.DeleteAsync().ConfigureAwait(false);
         }
 
-        public static T? ConvertEventToPKM(MysteryGift selectedEvent, byte? requestedLanguage = null)
+        public static T? ConvertEventToPKM(MysteryGift selectedEvent, byte? requestedLanguage = null, string? metDate = null)
         {
             // Create a SimpleTrainerInfo instance with just version and language
-            // Don't try to set other properties - let the MysteryGift implementation handle defaults
             var trainer = new SimpleTrainerInfo(selectedEvent.Version)
             {
                 Language = requestedLanguage ?? (byte)LanguageID.English,
@@ -272,6 +273,60 @@ namespace SysBot.Pokemon.Discord
 
             if (pkm is null)
                 return null;
+
+            // DO NOT apply custom met date for Mystery Gift eggs
+            // PKHeX already handles dates correctly for Mystery Gifts including special cases like:
+            // - BDSP eggs where MetLocation=65535 requires date fields to be 0
+            // - SV eggs where MetLocation=0 requires date fields to be 0
+            // Only apply custom dates for non-Mystery Gift scenarios
+            // Note: For now, we skip date setting for all eggs to avoid conflicts
+            if (!string.IsNullOrEmpty(metDate) && !pkm.IsEgg)
+            {
+                bool dateParseSuccess = false;
+
+                // Try to parse YYYYMMDD format first (expected from PKHeX)
+                if (metDate.Length == 8 && DateTime.TryParseExact(metDate, "yyyyMMdd", 
+                    System.Globalization.CultureInfo.InvariantCulture, 
+                    System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
+                {
+                    dateParseSuccess = true;
+                }
+                // Fallback to general DateTime parsing for other formats
+                else if (DateTime.TryParse(metDate, out parsedDate))
+                {
+                    dateParseSuccess = true;
+                }
+                
+                if (dateParseSuccess)
+                {
+                    var dateOnly = new DateOnly(parsedDate.Year, parsedDate.Month, parsedDate.Day);
+                    
+                    // Set MetDate for non-eggs
+                    if (pkm is PK9 pk9)
+                    {
+                        pk9.MetDate = dateOnly;
+                    }
+                    else if (pkm is PK8 pk8)
+                    {
+                        pk8.MetDate = dateOnly;
+                    }
+                    else if (pkm is PA8 pa8)
+                    {
+                        pa8.MetDate = dateOnly;
+                    }
+                    else if (pkm is PB8 pb8)
+                    {
+                        pb8.MetDate = dateOnly;
+                    }
+                    else
+                    {
+                        // For older PKM formats, use individual day/month/year properties
+                        pkm.MetDay = (byte)parsedDate.Day;
+                        pkm.MetMonth = (byte)parsedDate.Month;
+                        pkm.MetYear = (byte)(parsedDate.Year - 2000); // PKHeX stores only the last two digits of the year
+                    }
+                }
+            }
 
             // Convert to the correct type if necessary
             if (pkm is T pk)

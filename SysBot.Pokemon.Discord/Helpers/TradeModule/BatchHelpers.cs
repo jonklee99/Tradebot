@@ -4,6 +4,7 @@ using PKHeX.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace SysBot.Pokemon.Discord;
@@ -71,5 +72,33 @@ public static class BatchHelpers<T> where T : PKM, new()
         await QueueHelper<T>.AddBatchContainerToQueueAsync(context, batchTradeCode, context.User.Username,
             firstPokemon, batchPokemonList, sig, context.User, totalTrades).ConfigureAwait(false);
     }
-}
 
+    public static string BuildDetailedBatchErrorMessage(List<BatchTradeError> errors, int totalTrades)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"**Batch Trade Validation Failed**");
+        sb.AppendLine($"❌ {errors.Count} out of {totalTrades} Pokémon could not be processed.\n");
+
+        foreach (var error in errors)
+        {
+            sb.AppendLine($"**Trade #{error.TradeNumber} - {error.SpeciesName}**");
+            sb.AppendLine($"Error: {error.ErrorMessage}");
+
+            if (!string.IsNullOrEmpty(error.LegalizationHint))
+            {
+                sb.AppendLine($"💡 Hint: {error.LegalizationHint}");
+            }
+
+            if (!string.IsNullOrEmpty(error.ShowdownSet))
+            {
+                var lines = error.ShowdownSet.Split('\n').Take(3);
+                sb.AppendLine($"Set Preview: {string.Join(" | ", lines)}...");
+            }
+
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("**Please fix the invalid sets and try again.**");
+        return sb.ToString();
+    }
+}

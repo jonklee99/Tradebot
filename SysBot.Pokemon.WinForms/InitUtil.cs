@@ -14,6 +14,7 @@ public static class InitUtil
             ProgramMode.LA => new SAV8LA(),
             ProgramMode.SV => new SAV9SV(),
             ProgramMode.LGPE => new SAV7b(),
+            // Use SAV9SV for PLZA sprite initialization since PA9 shares Gen 9 sprite assets with PK9
             ProgramMode.PLZA => new SAV9SV(),
             _ => throw new System.ArgumentOutOfRangeException(nameof(mode)),
         };

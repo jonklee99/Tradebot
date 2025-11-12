@@ -534,6 +534,16 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
     public async Task BatchTradeAsync([Summary("List of Showdown Sets separated by '---'")][Remainder] string content)
     {
+        var tradeConfig = SysCord<T>.Runner.Config.Trade.TradeConfiguration;
+
+        // Check if batch trades are allowed
+        if (!tradeConfig.AllowBatchTrades)
+        {
+            await Helpers<T>.ReplyAndDeleteAsync(Context,
+                "Batch trades are currently disabled by the bot administrator.", 2);
+            return;
+        }
+
         var userID = Context.User.Id;
         if (!await Helpers<T>.EnsureUserNotInQueueAsync(userID))
         {
@@ -543,8 +553,11 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
         content = ReusableActions.StripCodeBlock(content);
         var trades = BatchHelpers<T>.ParseBatchTradeContent(content);
-        const int maxTradesAllowed = 4;
-        if (maxTradesAllowed < 1 || trades.Count > maxTradesAllowed)
+
+        // Use configured max trades per batch, default to 4 if less than 1
+        int maxTradesAllowed = tradeConfig.MaxPkmsPerTrade > 0 ? tradeConfig.MaxPkmsPerTrade : 4;
+
+        if (trades.Count > maxTradesAllowed)
         {
             await Helpers<T>.ReplyAndDeleteAsync(Context,
                 $"You can only process up to {maxTradesAllowed} trades at a time. Please reduce the number of trades in your batch.", 5);
@@ -630,7 +643,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             try
             {
-                var result = await Helpers<T>.ProcessShowdownSetAsync(content);
+                // Detect custom trainer info BEFORE generating the Pokemon
+                var ignoreAutoOT = content.Contains("OT:") || content.Contains("TID:") || content.Contains("SID:");
+
+                var result = await Helpers<T>.ProcessShowdownSetAsync(content, ignoreAutoOT);
 
                 if (result.Pokemon == null)
                 {
@@ -639,7 +655,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 }
 
                 var sig = Context.User.GetFavor();
-                var ignoreAutoOT = content.Contains("OT:") || content.Contains("TID:") || content.Contains("SID:");
 
                 await Helpers<T>.AddTradeToQueueAsync(
                     Context, code, Context.User.Username, result.Pokemon, sig, Context.User,

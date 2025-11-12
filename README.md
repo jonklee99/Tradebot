@@ -1,3 +1,7 @@
+> [!IMPORTANT]  
+> Legends Z-A Release is Here! 
+
+
 # Project PokeBot
 ![License](https://img.shields.io/badge/License-AGPLv3-blue.svg)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/hexbyt3/PokeBot/total?style=flat-square&logoColor=Red&color=red)
@@ -8,7 +12,7 @@
 
 For support on setting up your own instance of PokeBot, feel free to join the discord!
 
-[<img src="https://canary.discordapp.com/api/guilds/1369342739581505536/widget.png?style=banner2">](https://discord.gg/WRs22V6DgE)
+[<img src="https://canary.discordapp.com/api/guilds/1369342739581505536/widget.png?style=banner2">](https://discord.gg/DXRXBQDRc6)
 
 [sys-botbase](https://github.com/olliz0r/sys-botbase) client for remote control automation of Nintendo Switch consoles.
 
@@ -28,10 +32,6 @@ Control all of your bots with a simple to use control panel via `http://localhos
  ## Remote Control
 Control your switches right from the control center.  Simply open up the Remote Control window, select the IP of the switch you wish to control, and start clicking away on the remotes!
 <img width="1405" height="1151" alt="image" src="https://github.com/user-attachments/assets/d92647c4-e177-4e19-97b2-34cfd26bb77e" />
-
- ## Log Viewer
-View logs right from the control center!  Search for errors, users, and more!
-<img width="1410" height="1160" alt="image" src="https://github.com/user-attachments/assets/aaf823a9-6709-49e8-8a82-52f6865cbf49" />
 
   ## Realtime feedback
  Control all of your programs with the click of a button!  Idle all, stop all, start all, turn on/off all your switch screens at once!
@@ -73,7 +73,7 @@ netsh advfirewall firewall add rule name="PokeBot Web" dir=in action=allow proto
 
 ![image](https://github.com/user-attachments/assets/820d8892-ae52-4aa6-981a-cb57d1c32690)
 
-- Tray Support - When you press X to close out of the program, it goes to the system tray.  Right click the PokeBot icon in the tray to exit or control the bot.
+- Tray Support - When you click "Send To Tray, it goes to the system tray.  Right click the PokeBot icon in the tray to exit or control the bot.
 
 ![image](https://github.com/user-attachments/assets/3a30b334-955c-4fb3-b7d8-60cd005a2e18)
 
@@ -142,6 +142,7 @@ netsh advfirewall firewall add rule name="PokeBot Web" dir=in action=allow proto
 
 ## Supported Games
 
+- Legends ZA (PLZA)
 - Sword/Shield (SWSH)
 - Brilliant Diamond/Shining Pearl (BDSP) 
 - Legends Arceus (PLA)

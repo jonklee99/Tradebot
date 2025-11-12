@@ -122,7 +122,7 @@ public class PokemonPool<T>(BaseConfig Settings) : List<T>
             loadedAny = true;
         }
         if (surpriseBlocked == Count)
-            LogUtil.LogInfo("Surprise trading will fail; failed to load any compatible files.", nameof(PokemonPool<T>));
+            LogUtil.LogInfo(nameof(PokemonPool<T>), "Surprise trading will fail; failed to load any compatible files.");
 
         return loadedAny;
     }

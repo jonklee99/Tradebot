@@ -22,7 +22,7 @@ public sealed class TextBoxForwarder(TextBoxBase Box) : ILogForwarder
         lock (_logLock)
         {
             if (Box.InvokeRequired)
-                Box.BeginInvoke((MethodInvoker)(() => UpdateLog(line)));
+                Box.BeginInvoke((System.Windows.Forms.MethodInvoker)(() => UpdateLog(line)));
             else
                 UpdateLog(line);
         }
@@ -30,14 +30,23 @@ public sealed class TextBoxForwarder(TextBoxBase Box) : ILogForwarder
 
     private void UpdateLog(string line)
     {
-        // If we exceed the MaxLength, remove the top 1/4 of the lines.
-        // Don't change .Text directly; truncating to the middle of a line distorts the log formatting.
+        // More aggressive trimming to prevent performance issues
         var text = Box.Text;
         var max = Box.MaxLength;
-        if (text.Length + line.Length + 2 >= max)
+
+        // If we're approaching the limit (90% full), trim more aggressively
+        if (text.Length > max * 0.9)
         {
             var lines = Box.Lines;
-            Box.Lines = lines[(lines.Length / 4)..];
+            // Remove the top half of lines when near limit
+            var linesToKeep = lines.Length / 2;
+            Box.Lines = lines[^linesToKeep..];
+        }
+        // If we exceed the MaxLength, remove the top 1/3 of the lines
+        else if (text.Length + line.Length + 2 >= max)
+        {
+            var lines = Box.Lines;
+            Box.Lines = lines[(lines.Length / 3)..];
         }
 
         Box.AppendText(line);
