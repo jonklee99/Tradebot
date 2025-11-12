@@ -45,9 +45,9 @@ public abstract class PokeRoutineExecutor7LGPE : PokeRoutineExecutor<PB7>
         var timing = config.Timings;
 
         await Click(B, 0_500, token).ConfigureAwait(false);
-        await Click(HOME, 2_000 + timing.ClosingGameSettings.ExtraTimeReturnHome, token).ConfigureAwait(false);
+        await Click(HOME, 2_000 + timing.ExtraTimeReturnHome, token).ConfigureAwait(false);
         await Click(X, 1_000, token).ConfigureAwait(false);
-        await Click(A, 5_000 + timing.ClosingGameSettings.ExtraTimeCloseGame, token).ConfigureAwait(false);
+        await Click(A, 5_000 + timing.ExtraTimeCloseGame, token).ConfigureAwait(false);
         Log("Closed out of the game!");
     }
 
@@ -231,34 +231,34 @@ public abstract class PokeRoutineExecutor7LGPE : PokeRoutineExecutor<PB7>
 
         // Open game.
         var timing = config.Timings;
-        var loadPro = timing.OpeningGameSettings.ProfileSelectionRequired ? timing.OpeningGameSettings.ExtraTimeLoadProfile : 0;
+        var loadPro = timing.ProfileSelectionRequired ? timing.ExtraTimeLoadProfile : 0;
 
         await Click(A, 1_000 + loadPro, token).ConfigureAwait(false); // Initial "A" Press to start the Game + a delay if needed for profiles to load
 
         // Menus here can go in the order: Update Prompt -> Profile -> DLC check -> Unable to use DLC.
         //  The user can optionally turn on the setting if they know of a breaking system update incoming.
-        if (timing.MiscellaneousSettings.AvoidSystemUpdate)
+        if (timing.AvoidSystemUpdate)
         {
             await Click(DUP, 0_600, token).ConfigureAwait(false);
-            await Click(A, 1_000 + timing.OpeningGameSettings.ExtraTimeLoadProfile, token).ConfigureAwait(false);
+            await Click(A, 1_000 + timing.ExtraTimeLoadProfile, token).ConfigureAwait(false);
         }
 
         // Only send extra Presses if we need to
-        if (timing.OpeningGameSettings.ProfileSelectionRequired)
+        if (timing.ProfileSelectionRequired)
         {
             await Click(A, 1_000, token).ConfigureAwait(false); // Now we are on the Profile Screen
             await Click(A, 1_000, token).ConfigureAwait(false); // Select the profile
         }
 
         // Digital game copies take longer to load
-        if (timing.OpeningGameSettings.CheckGameDelay)
+        if (timing.CheckGameDelay)
         {
-            await Task.Delay(2_000 + timing.OpeningGameSettings.ExtraTimeCheckGame, token).ConfigureAwait(false);
+            await Task.Delay(2_000 + timing.ExtraTimeCheckGame, token).ConfigureAwait(false);
         }
 
         Log("Restarting the game!");
 
-        await Task.Delay(4_000 + timing.OpeningGameSettings.ExtraTimeLoadGame, token).ConfigureAwait(false);
+        await Task.Delay(4_000 + timing.ExtraTimeLoadGame, token).ConfigureAwait(false);
         await DetachController(token).ConfigureAwait(false);
 
         while (!await IsOnOverworldStandard(token).ConfigureAwait(false))

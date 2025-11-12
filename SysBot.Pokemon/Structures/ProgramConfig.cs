@@ -22,4 +22,6 @@ public enum ProgramMode
     SV = 4,
 
     LGPE = 5,
+
+    PLZA = 6,
 }

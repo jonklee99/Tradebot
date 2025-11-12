@@ -240,10 +240,10 @@ public static class DetailsExtractor<T> where T : PKM, new()
 
     private static string GetLanguageDisplay(T pk)
     {
-        int safeLanguage = (int)Language.GetSafeLanguage(pk.Generation, (LanguageID)pk.Language, (GameVersion)pk.Version);
+        int safeLanguage = pk.Language;
 
         string languageName = "Unknown";
-        var languageList = GameInfo.LanguageDataSource(pk.Format);
+        var languageList = GameInfo.LanguageDataSource(pk.Format, pk.Context);
         var languageEntry = languageList.FirstOrDefault(l => l.Value == pk.Language);
 
         if (languageEntry != null)
