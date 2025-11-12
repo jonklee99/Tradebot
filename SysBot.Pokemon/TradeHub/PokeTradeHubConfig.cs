@@ -86,4 +86,8 @@ public sealed class PokeTradeHubConfig : BaseConfig
     [Category(Integration)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public YouTubeSettings YouTube { get; set; } = new();
+
+    [Category(Operation), Description("Settings for automatic bot recovery after crashes or stops.")]
+    [TypeConverter(typeof(ExpandableObjectConverter))]
+    public RecoverySettings Recovery { get; set; } = new();
 }

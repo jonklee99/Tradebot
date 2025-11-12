@@ -21,34 +21,16 @@ namespace SysBot.Pokemon.WinForms
             if (disposing)
             {
                 // Unsubscribe event handlers to prevent memory leaks
-                if (contextMenu != null)
+                if (RCMenu != null)
                 {
-                    contextMenu.Opening -= RcMenuOnOpening;
+                    RCMenu.Opening -= RcMenuOnOpening;
                 }
 
                 // Unsubscribe MouseEnter/MouseLeave handlers from all controls
                 foreach (var c in Controls.OfType<Control>())
                 {
-                    if (c != btnActions)
-                    {
-                        c.MouseEnter -= BotController_MouseEnter;
-                        c.MouseLeave -= BotController_MouseLeave;
-                    }
-                }
-
-                if (mainPanel != null)
-                {
-                    foreach (var c in mainPanel.Controls.OfType<Control>())
-                    {
-                        c.MouseEnter -= BotController_MouseEnter;
-                        c.MouseLeave -= BotController_MouseLeave;
-                    }
-                }
-
-                if (animationTimer != null)
-                {
-                    animationTimer.Stop();
-                    animationTimer.Dispose();
+                    c.MouseEnter -= BotController_MouseEnter;
+                    c.MouseLeave -= BotController_MouseLeave;
                 }
 
                 if (components != null)
