@@ -17,7 +17,8 @@ namespace SysBot.Pokemon.Discord
 
             string? imageUrl = null;
             // Regular expression to extract URL from the message
-            var urlMatch = Regex.Match(msg, @"(http[s]?:\/\/.*\.(?:png|jpg|gif|jpeg))", RegexOptions.IgnoreCase);
+            // Matches any http/https URL (including image hosting services like Tenor, Giphy, Imgur, etc.)
+            var urlMatch = Regex.Match(msg, @"(https?:\/\/[^\s]+)", RegexOptions.IgnoreCase);
 
             if (urlMatch.Success)
             {

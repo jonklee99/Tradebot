@@ -36,6 +36,7 @@ public sealed class SysCord<T> where T : PKM, new()
     private readonly CommandService _commands;
     private readonly HashSet<ITradeBot> _connectedBots = [];
     private readonly object _botConnectionLock = new object();
+    private bool _handlersRegistered = false;
 
     private readonly IServiceProvider _services;
 
@@ -118,12 +119,6 @@ public sealed class SysCord<T> where T : PKM, new()
             // (ex. checking Reactions, checking the content of edited/deleted messages),
             // you must set the MessageCacheSize. You may adjust the number as needed.
             //MessageCacheSize = 50,
-        });
-
-        _client = new DiscordSocketClient(new DiscordSocketConfig
-        {
-            LogLevel = LogSeverity.Info,
-            GatewayIntents = Guilds | GuildMessages | DirectMessages | GuildMembers | GuildPresences | MessageContent,
         });
 
         // ===== DM Relay Setup =====
@@ -435,8 +430,13 @@ public sealed class SysCord<T> where T : PKM, new()
         }
 
         // Subscribe a handler to see if a message invokes a command.
-        _client.Ready += LoadLoggingAndEcho;
-        _client.MessageReceived += HandleMessageAsync;
+        // Guard to prevent duplicate event handler registration
+        if (!_handlersRegistered)
+        {
+            _client.Ready += LoadLoggingAndEcho;
+            _client.MessageReceived += HandleMessageAsync;
+            _handlersRegistered = true;
+        }
     }
 
     public async Task MainAsync(string apiToken, CancellationToken token)

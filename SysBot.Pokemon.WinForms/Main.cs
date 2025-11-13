@@ -291,6 +291,7 @@ public sealed partial class Main : Form
             ProgramMode.BDSP => Resources.bdsp_mode_image,
             ProgramMode.LA => Resources.pla_mode_image,
             ProgramMode.LGPE => Resources.lgpe_mode_image,
+            ProgramMode.PLZA => Resources.plza_mode_image,
             _ => null,
         };
         FLP_Bots.BackgroundImageLayout = ImageLayout.Center;

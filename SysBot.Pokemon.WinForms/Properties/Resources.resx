@@ -142,6 +142,9 @@
   <data name="sv_mode_image" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\sv_mode_image.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="plza_mode_image" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\plza_mode_image.jpg;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="stopall" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\stopall.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
