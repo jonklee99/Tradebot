@@ -1,45 +1,26 @@
 using Discord;
 using Discord.Commands;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 
-namespace SysBot.Pokemon.Discord
+namespace SysBot.Pokemon.Discord;
+
+public class HelloModule : ModuleBase<SocketCommandContext>
 {
-    public class HelloModule : ModuleBase<SocketCommandContext>
+    [Command("hello")]
+    [Alias("hi")]
+    [Summary("Say hello to the bot and get a response.")]
+    public async Task PingAsync()
     {
-        [Command("hello")]
-        [Alias("hi")]
-        [Summary("Say hello to the bot and get a response.")]
-        public async Task PingAsync()
-        {
-            var str = SysCordSettings.Settings.HelloResponse;
-            var msg = string.Format(str, Context.User.Mention);
+        var str = SysCordSettings.Settings.HelloResponse;
+        var imageUrl = string.Format(str, Context.User.Mention);
 
-            string? imageUrl = null;
-            // Regular expression to extract URL from the message
-            // Matches any http/https URL (including image hosting services like Tenor, Giphy, Imgur, etc.)
-            var urlMatch = Regex.Match(msg, @"(https?:\/\/[^\s]+)", RegexOptions.IgnoreCase);
+        var embed = new EmbedBuilder()
+            .WithDescription($"Hello {Context.User.Mention}!")
+            .WithImageUrl(imageUrl)
+            .WithColor(Color.Blue)
+            .Build();
 
-            if (urlMatch.Success)
-            {
-                imageUrl = urlMatch.Value;
-                // Remove the image URL from the message to avoid duplication
-                msg = msg.Replace(imageUrl, "").Trim();
-            }
-
-            var embedBuilder = new EmbedBuilder()
-                .WithTitle("Hello!")
-                .WithDescription(msg)
-                .WithColor(Color.Green);
-
-            if (!string.IsNullOrEmpty(imageUrl))
-            {
-                embedBuilder.WithImageUrl(imageUrl);
-            }
-
-            var embed = embedBuilder.Build();
-
-            await ReplyAsync(embed: embed).ConfigureAwait(false);
-        }
+        await ReplyAsync(embed: embed).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 }
