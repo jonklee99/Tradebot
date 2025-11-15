@@ -13,7 +13,7 @@ public class TimingSettings
     private const string Raid = nameof(Raid);
 
     [Category(Misc), Description("Enable this to decline incoming system updates.")]
-    public bool AvoidSystemUpdate { get; set; }
+    public bool AvoidSystemUpdate { get; set; } = true;
 
     [Category(Misc), Description("Extra time in milliseconds to wait between attempts to reconnect. Base time is 30 seconds.")]
     public int ExtraReconnectDelay { get; set; }
