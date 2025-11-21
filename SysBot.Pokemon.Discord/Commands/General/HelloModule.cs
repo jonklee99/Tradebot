@@ -11,16 +11,23 @@ public class HelloModule : ModuleBase<SocketCommandContext>
     [Summary("Say hello to the bot and get a response.")]
     public async Task PingAsync()
     {
-        var str = SysCordSettings.Settings.HelloResponse;
-        var imageUrl = string.Format(str, Context.User.Mention);
+        var response = SysCordSettings.Settings.HelloResponse;
+        var message = string.Format(response, Context.User.Mention);
 
         var embed = new EmbedBuilder()
-            .WithDescription($"Hello {Context.User.Mention}!")
-            .WithImageUrl(imageUrl)
+            .WithDescription(message)
             .WithColor(Color.Blue)
             .Build();
 
         await ReplyAsync(embed: embed).ConfigureAwait(false);
-        await Context.Message.DeleteAsync();
+
+        try
+        {
+            await Context.Message.DeleteAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Bot may not have permission to delete messages
+        }
     }
 }
