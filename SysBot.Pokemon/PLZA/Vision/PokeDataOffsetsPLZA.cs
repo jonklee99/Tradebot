@@ -24,6 +24,5 @@ public class PokeDataOffsetsPLZA
 
     public const uint FallBackTradePartnerDataShift = 0x598;             // Fallback offset for partner data
     public const uint TradePartnerNIDShift =          0x30;              // NID field offset
-    public const uint TradePartnerOTShift =           0x7C;              // OT name field offset
     public const uint TradePartnerTIDShift =          0x74;              // TID field offset
 }

@@ -36,7 +36,4 @@ public abstract class BaseConfig
     [Browsable(false)]
     [Category(Debug), Description("Skips creating bots when the program is started; helpful for testing integrations.")]
     public bool SkipConsoleBotCreation { get; set; }
-
-    [Category(FeatureToggle), Description("When enabled, the bot will Enter Link Trade Code via Keyboard (faster).")]
-    public bool UseKeyboard { get; set; } = true;
 }
