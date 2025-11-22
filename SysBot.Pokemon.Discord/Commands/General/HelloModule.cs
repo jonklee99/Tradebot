@@ -1,4 +1,3 @@
-using Discord;
 using Discord.Commands;
 using System.Threading.Tasks;
 
@@ -11,28 +10,9 @@ public class HelloModule : ModuleBase<SocketCommandContext>
     [Summary("Say hello to the bot and get a response.")]
     public async Task PingAsync()
     {
-        var response = SysCordSettings.Settings.HelloResponse;
-        var message = string.Format(response, Context.User.Mention);
-
-        var embedBuilder = new EmbedBuilder()
-            .WithDescription(message)
-            .WithColor(Color.Blue);
-
-        var gifUrl = SysCordSettings.Settings.HelloGifUrl;
-        if (!string.IsNullOrWhiteSpace(gifUrl))
-            embedBuilder.WithImageUrl(gifUrl);
-
-        var embed = embedBuilder.Build();
-
-        await ReplyAsync(embed: embed).ConfigureAwait(false);
-
-        try
-        {
-            await Context.Message.DeleteAsync().ConfigureAwait(false);
-        }
-        catch
-        {
-            // Bot may not have permission to delete messages
-        }
+        var str = SysCordSettings.Settings.HelloResponse;
+        var msg = string.Format(str, Context.User.Mention);
+        await ReplyAsync(msg).ConfigureAwait(false);
+        await Context.Message.DeleteAsync();
     }
 }
