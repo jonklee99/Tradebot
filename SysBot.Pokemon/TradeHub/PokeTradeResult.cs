@@ -19,6 +19,8 @@ public enum PokeTradeResult
 
     SuspiciousActivity,
 
+    TradeEvolveNotAllowed,
+
     UserCanceled,
 
     // Recovery -- General Bot Failures
