@@ -14,10 +14,15 @@ public class HelloModule : ModuleBase<SocketCommandContext>
         var response = SysCordSettings.Settings.HelloResponse;
         var message = string.Format(response, Context.User.Mention);
 
-        var embed = new EmbedBuilder()
+        var embedBuilder = new EmbedBuilder()
             .WithDescription(message)
-            .WithColor(Color.Blue)
-            .Build();
+            .WithColor(Color.Blue);
+
+        var gifUrl = SysCordSettings.Settings.HelloGifUrl;
+        if (!string.IsNullOrWhiteSpace(gifUrl))
+            embedBuilder.WithImageUrl(gifUrl);
+
+        var embed = embedBuilder.Build();
 
         await ReplyAsync(embed: embed).ConfigureAwait(false);
 

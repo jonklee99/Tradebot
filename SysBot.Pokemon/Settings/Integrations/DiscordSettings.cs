@@ -107,6 +107,9 @@ public class DiscordSettings
     [Category(Operation), Description("Custom message the bot will reply with when a user says hello to it. Use string formatting to mention the user in the reply.")]
     public string HelloResponse { get; set; } = "Hi {0}!";
 
+    [Category(Operation), Description("URL of the gif/image to display in the hello command embed. Leave empty to disable.")]
+    public string HelloGifUrl { get; set; } = string.Empty;
+
     [Category(Channels), Description("Channel IDs that will echo the log bot data.")]
     public RemoteControlAccessList LoggingChannels { get; set; } = new();
 
