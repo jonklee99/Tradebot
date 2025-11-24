@@ -184,13 +184,13 @@ public class TradeQueueManager<T> where T : PKM, new()
 
         var random = Hub.Ledy.Pool.GetRandomPoke();
         var code = cfg.RandomCode ? Hub.Config.Trade.GetRandomTradeCode() : cfg.TradeCode;
-        var lgcode = GetDefaultLGCode();
+        var lgcode = GetLGPECode(cfg);
 
         var trainer = new PokeTradeTrainerInfo("Random Distribution");
         detail = new(random, trainer, PokeTradeHub<T>.LogNotifier, PokeTradeType.Random, code, false, lgcode);
         return true;
     }
 
-    private static List<Pictocodes> GetDefaultLGCode() =>
-        [Pictocodes.Pikachu, Pictocodes.Pikachu, Pictocodes.Pikachu];
+    private static List<Pictocodes> GetLGPECode(DistributionSettings cfg) =>
+        [cfg.LGPECode1, cfg.LGPECode2, cfg.LGPECode3];
 }
