@@ -519,7 +519,7 @@ public abstract class TradeExtensions<T> where T : PKM, new()
         if (held <= 0)
             return false;
 
-        // Check if item is not allowed to be held in this game context
+     // Check if item is not allowed to be held in this game context
         if (!ItemRestrictions.IsHeldItemAllowed(held, pkm.Context))
             return true;
 
