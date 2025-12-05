@@ -59,9 +59,7 @@
     <ProjectReference Include="..\SysBot.Pokemon.Z3\SysBot.Pokemon.Z3.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="PKHeX.Core">
-      <HintPath>..\SysBot.Pokemon\deps\PKHeX.Core.dll</HintPath>
-    </Reference>
+    <PackageReference Include="PKHeX.Core" Version="25.12.2" />
     <Reference Include="PKHeX.Drawing">
       <HintPath>deps\PKHeX.Drawing.dll</HintPath>
     </Reference>

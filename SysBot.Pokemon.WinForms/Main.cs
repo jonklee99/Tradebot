@@ -245,29 +245,43 @@ public sealed partial class Main : Form
         }
     }
 
-    private void UpdateRunnerAndUI()
-    {
-        RunningEnvironment = GetRunner(Config);
-        Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
-    }
+        private void SaveCurrentConfig()
+        {
+            try
+            {
+                var cfg = GetCurrentConfiguration();
+                var json = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
 
-    private void B_Start_Click(object sender, EventArgs e)
-    {
-        SaveCurrentConfig();
+                // Use atomic write operation to prevent corruption
+                var tempPath = Program.ConfigPath + ".tmp";
+                var backupPath = Program.ConfigPath + ".bak";
 
-        LogUtil.LogInfo("Starting all bots...", "Form");
-        RunningEnvironment.InitializeStart();
-        SendAll(BotControlCommand.Start);
-        Tab_Logs.Select();
+                // Write to temporary file first
+                File.WriteAllText(tempPath, json);
 
-        if (Bots.Count == 0)
-            WinFormsUtil.Alert("No bots configured, but all supporting services have been started.");
-    }
+                // Create backup of existing config if it exists
+                if (File.Exists(Program.ConfigPath))
+                {
+                    File.Copy(Program.ConfigPath, backupPath, true);
+                }
 
-    private void B_RebootStop_Click(object sender, EventArgs e)
-    {
-        B_Stop_Click(sender, e);
-        Task.Run(async () =>
+                // Atomic rename operation
+                File.Move(tempPath, Program.ConfigPath, true);
+
+                // Delete backup after successful save
+                if (File.Exists(backupPath))
+                {
+                    try { File.Delete(backupPath); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogUtil.LogError($"Failed to save config: {ex.Message}", "Config");
+            }
+        }
+
+
+        private void B_Start_Click(object sender, EventArgs e)
         {
             await Task.Delay(3_500).ConfigureAwait(false);
             SaveCurrentConfig();
