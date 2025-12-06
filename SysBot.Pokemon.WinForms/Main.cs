@@ -218,17 +218,6 @@ public sealed partial class Main : Form
         Task.WhenAny(WaitUntilNotRunning(), Task.Delay(5_000)).ConfigureAwait(true).GetAwaiter().GetResult();
     }
 
-    private void SaveCurrentConfig()
-    {
-        var cfg = GetCurrentConfiguration();
-        var lines = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
-        File.WriteAllText(Program.ConfigPath, lines);
-    }
-
-    [JsonSerializable(typeof(ProgramConfig))]
-    [JsonSourceGenerationOptions(WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-    public sealed partial class ProgramConfigContext : JsonSerializerContext;
-
     private void ComboBox1_SelectedIndexChanged(object? sender, EventArgs e)
     {
         if (_isFormLoading) return; // Check to avoid processing during form loading
@@ -245,43 +234,88 @@ public sealed partial class Main : Form
         }
     }
 
-        private void SaveCurrentConfig()
+    private void SaveCurrentConfig()
+    {
+        try
+        {
+            var cfg = GetCurrentConfiguration();
+            var json = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
+
+            // Use atomic write operation to prevent corruption
+            var tempPath = Program.ConfigPath + ".tmp";
+            var backupPath = Program.ConfigPath + ".bak";
+
+            // Write to temporary file first
+            File.WriteAllText(tempPath, json);
+
+            // Create backup of existing config if it exists
+            if (File.Exists(Program.ConfigPath))
+            {
+                File.Copy(Program.ConfigPath, backupPath, true);
+            }
+
+            // Atomic rename operation
+            File.Move(tempPath, Program.ConfigPath, true);
+
+            // Delete backup after successful save
+            if (File.Exists(backupPath))
+            {
+                try { File.Delete(backupPath); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            LogUtil.LogError($"Failed to save config: {ex.Message}", "Config");
+        }
+    }
+
+    private void B_RebootStop_Click(object sender, EventArgs e)
+    {
+        Task.Run(async () =>
         {
             try
             {
-                var cfg = GetCurrentConfiguration();
-                var json = JsonSerializer.Serialize(cfg, ProgramConfigContext.Default.ProgramConfig);
+                LogUtil.LogInfo("Starting reset process...", "Form");
+                SaveCurrentConfig();
 
-                // Use atomic write operation to prevent corruption
-                var tempPath = Program.ConfigPath + ".tmp";
-                var backupPath = Program.ConfigPath + ".bak";
+                // Phase 1: Stop all bots gracefully
+                LogUtil.LogInfo("Phase 1: Stopping all bots...", "Form");
+                SendAll(BotControlCommand.Stop);
 
-                // Write to temporary file first
-                File.WriteAllText(tempPath, json);
+                // Phase 2: Wait for all bots to fully stop
+                await Task.Delay(2000).ConfigureAwait(false);
 
-                // Create backup of existing config if it exists
-                if (File.Exists(Program.ConfigPath))
-                {
-                    File.Copy(Program.ConfigPath, backupPath, true);
-                }
+                // Phase 3: Stop all services
+                LogUtil.LogInfo("Phase 3: Stopping all services...", "Form");
+                await Task.Delay(2000).ConfigureAwait(false); // Give services time to fully stop
 
-                // Atomic rename operation
-                File.Move(tempPath, Program.ConfigPath, true);
+                // Phase 4: Reinitialize environment
+                LogUtil.LogInfo("Phase 4: Reinitializing environment...", "Form");
+                RunningEnvironment.InitializeStart();
+                await Task.Delay(1000).ConfigureAwait(false);
 
-                // Delete backup after successful save
-                if (File.Exists(backupPath))
-                {
-                    try { File.Delete(backupPath); } catch { }
-                }
+                // Phase 5: Reboot consoles
+                LogUtil.LogInfo("Phase 5: Rebooting all consoles...", "Form");
+                SendAll(BotControlCommand.RebootAndStop);
+                await Task.Delay(8000).ConfigureAwait(false); // Give consoles time to reboot
+
+                // Phase 6: Restart all bots
+                LogUtil.LogInfo("Phase 6: Starting all bots...", "Form");
+                SendAll(BotControlCommand.Start);
+
+                LogUtil.LogInfo("Reset process completed successfully", "Form");
+
+                if (Bots.Count == 0)
+                    WinFormsUtil.Alert("No bots configured, but all supporting services have been issued the reboot command.");
             }
             catch (Exception ex)
             {
-                LogUtil.LogError($"Failed to save config: {ex.Message}", "Config");
+                LogUtil.LogError($"Reset process failed: {ex.Message}", "Form");
             }
-        }
+        });
+    }
 
-
-        private void B_Start_Click(object sender, EventArgs e)
+    private async void B_Start_Click(object sender, EventArgs e)
         {
             await Task.Delay(3_500).ConfigureAwait(false);
             SaveCurrentConfig();
@@ -293,7 +327,12 @@ public sealed partial class Main : Form
             Tab_Logs.Select();
             if (Bots.Count == 0)
                 WinFormsUtil.Alert("No bots configured, but all supporting services have been issued the reboot command.");
-        });
+        }
+
+    private void UpdateRunnerAndUI()
+    {
+        RunningEnvironment = GetRunner(Config);
+        Text = $"{(string.IsNullOrEmpty(Config.Hub.BotName) ? "GenPKM.com" : Config.Hub.BotName)} {PokeBot.Version} ({Config.Mode})";
     }
 
     private void UpdateBackgroundImage(ProgramMode mode)
