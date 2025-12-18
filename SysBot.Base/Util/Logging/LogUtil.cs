@@ -184,7 +184,7 @@ public static class LogUtil
         }
     }
 
-    public static void LogError(string identity, string message)
+    public static void LogError(string message, string identity)
     {
         // Log to master log
         if (LogConfig.EnableMasterLog)
@@ -218,7 +218,7 @@ public static class LogUtil
         }
     }
 
-    public static void LogInfo(string identity, string message)
+    public static void LogInfo(string message, string identity)
     {
         // Log to master log
         if (LogConfig.EnableMasterLog)
@@ -252,7 +252,7 @@ public static class LogUtil
         }
     }
 
-    public static void LogSuspicious(string identity, string message)
+    public static void LogSuspicious(string message, string identity)
     {
         // Log to master log
         if (LogConfig.EnableMasterLog)

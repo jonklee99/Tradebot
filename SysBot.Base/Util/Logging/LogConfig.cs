@@ -75,4 +75,18 @@ public static class LogConfig
         // Services
         "BotTaskService", "RestartManager", "PokemonPool"
     ];
+
+    /// <summary>
+    /// Enable periodic cleanup of old archived log files.
+    /// When disabled, log retention is controlled only by NLog's MaxArchiveFiles setting.
+    /// DEFAULT: false - rely on NLog's built-in archiving behavior
+    /// </summary>
+    public static bool EnableLogFileCleanup { get; set; } = false;
+
+    /// <summary>
+    /// Number of days to retain archived log files when EnableLogFileCleanup is true.
+    /// Files older than this will be deleted during periodic cleanup.
+    /// DEFAULT: 7 days
+    /// </summary>
+    public static int LogFileRetentionDays { get; set; } = 7;
 }
