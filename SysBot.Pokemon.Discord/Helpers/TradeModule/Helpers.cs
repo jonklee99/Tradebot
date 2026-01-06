@@ -5,6 +5,7 @@ using Discord.WebSocket;
 using PKHeX.Core;
 using PKHeX.Core.AutoMod;
 using SysBot.Base;
+using SysBot.Pokemon.Discord.Helpers.TradeModule;
 using SysBot.Pokemon.Helpers;
 using System;
 using System.Collections.Generic;
@@ -222,6 +223,17 @@ public static class Helpers<T> where T : PKM, new()
             });
         }
 
+        // Apply IV enforcement with nature/shiny manipulation for non-eggs
+        if (!isEgg && set.IVs != null && set.IVs.Count() == 6)
+        {
+            int[] requestedIVs = IVEnforcer.ExtractIVsFromSet(set);
+            if (requestedIVs.Length == 6)
+            {
+                var shinyType = pk.IsShiny ? (pk.ShinyXor == 0 ? Shiny.AlwaysSquare : Shiny.AlwaysStar) : Shiny.Never;
+                IVEnforcer.ApplyRequestedIVsAndForceNature(pk, requestedIVs, set.Nature, shinyType);
+            }
+        }
+
         // Final preparation
         PrepareForTrade(pk, set, finalLanguage);
 
@@ -362,6 +374,12 @@ public static class Helpers<T> where T : PKM, new()
             _ = await context.Channel.SendMessageAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
             return null;
         }
+
+        // Clear hypertrain flags on attachment processing to preserve exact IV display values
+        IVEnforcer.ClearHyperTraining(pk);
+
+        // Refresh checksum after modifications
+        pk.RefreshChecksum();
 
         return pk;
     }
