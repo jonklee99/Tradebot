@@ -18,8 +18,8 @@ public sealed class GengarNamer : IFileNamer<PKM>
         int abilityIndex = pk.Ability;
 
         // You need to implement a method similar to Util.GetNaturesList for abilities
-        var abilityStrings = Util.GetAbilitiesList("en");
-        if ((uint)abilityIndex >= abilityStrings.Length)
+        var abilityStrings = GameInfo.GetStrings("en").Ability;
+        if ((uint)abilityIndex >= abilityStrings.Count)
             abilityIndex = 0;
         return abilityStrings[abilityIndex];
     }
@@ -47,10 +47,10 @@ public sealed class GengarNamer : IFileNamer<PKM>
     private static string GetNature(PKM pk)
     {
         var nature = pk.Nature;
-        var strings = Util.GetNaturesList("en");
-        if ((uint)nature >= strings.Length)
+        var strings = GameInfo.GetStrings("en").Natures;
+        if ((uint)nature >= strings.Count)
             nature = 0;
-        return strings[(uint)nature];
+        return strings[(int)nature];
     }
 
     private static string GetRegular(PKM pk)

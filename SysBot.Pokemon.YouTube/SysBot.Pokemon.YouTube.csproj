@@ -6,7 +6,7 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Apis" Version="1.68.0" />
@@ -20,7 +20,9 @@
     <ProjectReference Include="..\SysBot.Pokemon\SysBot.Pokemon.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="PKHeX.Core" Version="25.12.15" />
+    <Reference Include="PKHeX.Core">
+      <HintPath>..\SysBot.Pokemon\deps\PKHeX.Core.dll</HintPath>
+    </Reference>
     <Reference Include="StreamingClient.Base">
       <HintPath>deps\StreamingClient.Base.dll</HintPath>
     </Reference>
