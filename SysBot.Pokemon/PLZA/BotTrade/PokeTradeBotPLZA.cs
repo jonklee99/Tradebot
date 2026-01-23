@@ -37,6 +37,10 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
     private bool _wasConnectedToPartner = false;
     private int _consecutiveConnectionFailures = 0; // Track consecutive online connection failures for soft ban detection
 
+    // Cached session offsets
+    private ulong ConnectedOffsetCached;
+    private ulong OverworldOffsetCached;
+
     public event EventHandler<Exception>? ConnectionError;
 
     public event EventHandler? ConnectionSuccess;
@@ -79,6 +83,7 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
             DisplaySID = sav.DisplaySID;
             DisplayTID = sav.DisplayTID;
             RecentTrainerCache.SetRecentTrainer(sav);
+            await InitializeSessionOffsets(token).ConfigureAwait(false);
             OnConnectionSuccess();
 
             StartFromOverworld = true;
@@ -119,6 +124,7 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
         await Task.Delay(2_000, t).ConfigureAwait(false);
         await ReOpenGame(Hub.Config, t).ConfigureAwait(false);
         _cachedBoxOffset = null; // Invalidate box offset cache after reboot
+        await InitializeSessionOffsets(t).ConfigureAwait(false); // Re-cache offsets after game restart
         await HardStop().ConfigureAwait(false);
         await Task.Delay(2_000, t).ConfigureAwait(false);
         if (!t.IsCancellationRequested)
@@ -126,6 +132,17 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
             Log("Restarting the main loop.");
             await MainLoop(t).ConfigureAwait(false);
         }
+    }
+
+    private async Task InitializeSessionOffsets(CancellationToken token)
+    {
+        Log("Caching session offsets...");
+        // For PLZA v2.0.1, ConnectedOffset and OverworldOffset are const values in main memory
+        // They don't need pointer resolution
+        ConnectedOffsetCached = ConnectedOffset;
+        OverworldOffsetCached = OverworldOffset;
+        Log($"Cached ConnectedOffset: 0x{ConnectedOffsetCached:X}, OverworldOffset: 0x{OverworldOffsetCached:X}");
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     #endregion
@@ -396,9 +413,18 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
 
     private async Task<bool> ConnectAndEnterPortal(CancellationToken token)
     {
+        // Ensure we're on the overworld before attempting connection
         if (!await CheckIfOnOverworld(token).ConfigureAwait(false))
-            await RecoverToOverworld(token).ConfigureAwait(false);
+        {
+            Log("Not on overworld, attempting recovery...");
+            if (!await RecoverToOverworld(token).ConfigureAwait(false))
+            {
+                Log("Failed to recover to overworld.");
+                return false;
+            }
+        }
 
+        Log("Opening menu for online connection...");
         await Click(X, 3_000, token).ConfigureAwait(false); // Load Menu
 
         await Click(DUP, 1_000, token).ConfigureAwait(false);
@@ -412,6 +438,7 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
 
         if (wasAlreadyConnected)
         {
+            Log("Already connected online.");
             await Click(A, 1_000, token).ConfigureAwait(false);
             await Click(A, 1_000, token).ConfigureAwait(false);
             await Task.Delay(1_000, token).ConfigureAwait(false);
@@ -419,6 +446,7 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
         }
         else
         {
+            Log("Attempting to connect online...");
             await Click(A, 1_000, token).ConfigureAwait(false);
 
             int attempts = 0;
@@ -428,11 +456,12 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
                 if (++attempts > 30)
                 {
                     _consecutiveConnectionFailures++;
-                    Log($"Failed to connect online. Consecutive failures: {_consecutiveConnectionFailures}");
+                    Log($"Failed to connect online after 30 seconds. Consecutive failures: {_consecutiveConnectionFailures}");
 
                     if (_consecutiveConnectionFailures >= 3)
                     {
-                        Log("Soft ban detected (3 consecutive connection failures). Waiting 30 minutes...");
+                        Log("Possible soft ban detected (3 consecutive connection failures).");
+                        Log("Waiting 30 minutes before retrying...");
                         await Task.Delay(30 * 60 * 1000, token).ConfigureAwait(false);
                         Log("30 minute wait complete. Resuming operations.");
                         _consecutiveConnectionFailures = 0;
@@ -442,7 +471,7 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
                 }
             }
             await Task.Delay(8_000 + Hub.Config.Timings.ExtraTimeConnectOnline, token).ConfigureAwait(false);
-            Log("Connected online.");
+            Log("Successfully connected online!");
             _consecutiveConnectionFailures = 0;
 
             await Click(A, 1_000, token).ConfigureAwait(false);
@@ -514,52 +543,75 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
     private async Task ExitTradeToOverworld(bool unexpected, CancellationToken token)
     {
         if (unexpected)
-            Log("Unexpected behavior, recovering to overworld.");
+            Log("Unexpected behavior detected, recovering to overworld.");
 
+        // Check if we're already on overworld
         if (await CheckIfOnOverworld(token).ConfigureAwait(false))
         {
+            Log("Already on overworld, resetting state.");
             StartFromOverworld = true;
             _wasConnectedToPartner = false;
+            _cachedBoxOffset = null;
             return;
         }
 
-        Log("Resetting to the overworld...");
+        Log("Exiting trade and returning to overworld...");
 
-        // If we're in the Box or searching for a Link Trade, we need to use the BAB approach, otherwise we can just mash B.
+        // If we're in the Box or searching for a Link Trade, we need to use the BAB approach
         var remainMs = 120_000;
-        while (await GetMenuState(token).ConfigureAwait(false) >= MenuState.LinkTrade)
+        var menuState = await GetMenuState(token).ConfigureAwait(false);
+        Log($"Current menu state: {menuState}");
+
+        while (menuState >= MenuState.LinkTrade)
         {
             if (remainMs < 0)
             {
-                // Failed to exit somehow.
+                // Failed to exit after 2 minutes - restart the game
+                Log("Failed to exit trade menu after 2 minutes. Restarting game...");
                 await RestartGamePLZA(token).ConfigureAwait(false);
                 StartFromOverworld = true;
                 _wasConnectedToPartner = false;
+                _cachedBoxOffset = null;
                 return;
             }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
-            if (await GetMenuState(token).ConfigureAwait(false) < MenuState.LinkTrade)
+            menuState = await GetMenuState(token).ConfigureAwait(false);
+            if (menuState < MenuState.LinkTrade)
                 break;
 
             var box = await IsOnMenu(MenuState.InBox, token).ConfigureAwait(false);
             await Click(box ? A : B, 1_000, token).ConfigureAwait(false);
-            if (await GetMenuState(token).ConfigureAwait(false) < MenuState.LinkTrade)
+            menuState = await GetMenuState(token).ConfigureAwait(false);
+            if (menuState < MenuState.LinkTrade)
                 break;
 
             await Click(B, 1_000, token).ConfigureAwait(false);
-            if (await GetMenuState(token).ConfigureAwait(false) < MenuState.LinkTrade)
+            menuState = await GetMenuState(token).ConfigureAwait(false);
+            if (menuState < MenuState.LinkTrade)
                 break;
+
             remainMs -= 3_000;
         }
 
-        // From here, we should be able to press B to get to overworld.
+        // From here, we should be able to press B to get to overworld
+        Log("Exited trade menu, navigating to overworld...");
+        int overworldAttempts = 0;
         while (!await CheckIfOnOverworld(token).ConfigureAwait(false))
+        {
             await Click(B, 0_200, token).ConfigureAwait(false);
+            if (++overworldAttempts > 100)
+            {
+                Log("Failed to reach overworld after 100 B presses. Restarting game...");
+                await RestartGamePLZA(token).ConfigureAwait(false);
+                break;
+            }
+        }
 
-        Log("Returned to overworld.");
+        Log("Successfully returned to overworld.");
         StartFromOverworld = true;
         _wasConnectedToPartner = false;
+        _cachedBoxOffset = null;
     }
 
     #endregion
@@ -624,13 +676,29 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
 
     private async Task<bool> CheckIfOnOverworld(CancellationToken token)
     {
-        return await IsOnMenu(MenuState.Overworld, token).ConfigureAwait(false);
+        // Check both menu state and overworld offset for reliability
+        var menuCheck = await IsOnMenu(MenuState.Overworld, token).ConfigureAwait(false);
+        if (!menuCheck)
+            return false;
+
+        // Double-check using the overworld offset
+        var data = await SwitchConnection.ReadBytesMainAsync(OverworldOffsetCached, 1, token).ConfigureAwait(false);
+        return data[0] == 1;
     }
 
     private async Task<bool> CheckIfConnectedOnline(CancellationToken token)
     {
-        // Use the direct main memory offset for faster and more reliable connection checks
-        return await IsConnected(token).ConfigureAwait(false);
+        // Use the cached main memory offset for connection checks
+        try
+        {
+            var data = await SwitchConnection.ReadBytesMainAsync(ConnectedOffsetCached, 1, token).ConfigureAwait(false);
+            return data[0] == 1;
+        }
+        catch (Exception ex)
+        {
+            Log($"Connection check failed: {ex.Message}");
+            return false;
+        }
     }
 
     #endregion
@@ -644,14 +712,24 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
             return;
 
         detail.IsProcessing = false;
+
+        // Log the failure reason for debugging
+        Log($"Trade aborted for {detail.Trainer.TrainerName}. Reason: {result}");
+
         if (result.ShouldAttemptRetry() && detail.Type != PokeTradeType.Random && !detail.IsRetry)
         {
             detail.IsRetry = true;
             Hub.Queues.Enqueue(type, detail, Math.Min(priority, PokeTradePriorities.Tier2));
+            Log($"Requeuing trade for {detail.Trainer.TrainerName} for retry (Priority: {priority})");
             detail.SendNotification(this, "Oops! Something happened. I'll requeue you for another attempt.");
+
+            // Add a small delay to prevent rapid-fire retries
+            Task.Delay(2_000).Wait();
         }
         else
         {
+            if (detail.IsRetry)
+                Log($"Trade failed after retry for {detail.Trainer.TrainerName}. Not requeuing again.");
             detail.SendNotification(this, $"Oops! Something happened. Canceling the trade: {result}.");
             detail.TradeCanceled(this, result);
         }
@@ -1140,26 +1218,43 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
     {
         if (StartFromOverworld)
         {
+            Log("Starting from overworld, checking position...");
             if (!await CheckIfOnOverworld(token).ConfigureAwait(false))
             {
-                await RecoverToOverworld(token).ConfigureAwait(false);
+                Log("Not on overworld, attempting recovery...");
+                if (!await RecoverToOverworld(token).ConfigureAwait(false))
+                {
+                    Log("Failed to recover to overworld.");
+                    return false;
+                }
             }
 
             if (!await ConnectAndEnterPortal(token).ConfigureAwait(false))
             {
-                Log("Connection error. Restarting...");
+                Log("Failed to connect and enter portal. Attempting recovery...");
                 await RecoverToOverworld(token).ConfigureAwait(false);
                 return false;
             }
+
+            Log("Successfully connected and entered portal.");
         }
-        else if (!await CheckIfConnectedOnline(token).ConfigureAwait(false))
+        else
         {
-            await RecoverToOverworld(token).ConfigureAwait(false);
-            if (!await ConnectAndEnterPortal(token).ConfigureAwait(false))
+            Log("Not starting from overworld, checking online connection...");
+            if (!await CheckIfConnectedOnline(token).ConfigureAwait(false))
             {
-                Log("Connection failed. Restarting...");
+                Log("Not connected online, recovering to overworld...");
                 await RecoverToOverworld(token).ConfigureAwait(false);
-                return false;
+                if (!await ConnectAndEnterPortal(token).ConfigureAwait(false))
+                {
+                    Log("Failed to connect after recovery. Connection may be unstable.");
+                    await RecoverToOverworld(token).ConfigureAwait(false);
+                    return false;
+                }
+            }
+            else
+            {
+                Log("Already connected online.");
             }
         }
 
@@ -1472,43 +1567,86 @@ public class PokeTradeBotPLZA(PokeTradeHub<PA9> Hub, PokeBotState Config) : Poke
 
     private async Task<bool> RecoverToOverworld(CancellationToken token)
     {
-        if (await CheckIfOnOverworld(token).ConfigureAwait(false))
-            return true;
+        Log("Attempting recovery to overworld...");
 
-        Log("Recovering...");
+        // First check if we're already on the overworld
+        if (await CheckIfOnOverworld(token).ConfigureAwait(false))
+        {
+            Log("Already on overworld, resetting state...");
+            StartFromOverworld = true;
+            _wasConnectedToPartner = false;
+            return true;
+        }
+
+        Log("Not on overworld, attempting navigation back...");
 
         await Click(B, 1_500, token).ConfigureAwait(false);
         if (await CheckIfOnOverworld(token).ConfigureAwait(false))
+        {
+            Log("Recovered to overworld (method 1).");
+            StartFromOverworld = true;
+            _wasConnectedToPartner = false;
             return true;
+        }
 
         await Click(A, 1_500, token).ConfigureAwait(false);
         if (await CheckIfOnOverworld(token).ConfigureAwait(false))
+        {
+            Log("Recovered to overworld (method 2).");
+            StartFromOverworld = true;
+            _wasConnectedToPartner = false;
             return true;
+        }
 
+        // Try B button spam
         var attempts = 0;
         while (!await CheckIfOnOverworld(token).ConfigureAwait(false))
         {
             attempts++;
             if (attempts >= 30)
+            {
+                Log($"Failed to recover after {attempts} attempts.");
                 break;
+            }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
             if (await CheckIfOnOverworld(token).ConfigureAwait(false))
+            {
+                Log($"Recovered to overworld after {attempts} B presses.");
                 break;
+            }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
             if (await CheckIfOnOverworld(token).ConfigureAwait(false))
+            {
+                Log($"Recovered to overworld after {attempts * 2} B presses.");
                 break;
+            }
         }
 
+        // If still not on overworld, restart the game
         if (!await CheckIfOnOverworld(token).ConfigureAwait(false))
         {
-            Log("Restarting game...");
+            Log("Failed to recover to overworld via navigation. Restarting game...");
             await RestartGamePLZA(token).ConfigureAwait(false);
+            await Task.Delay(5_000, token).ConfigureAwait(false);
+
+            // Verify we're on overworld after restart
+            if (!await CheckIfOnOverworld(token).ConfigureAwait(false))
+            {
+                Log("ERROR: Still not on overworld after game restart!");
+                return false;
+            }
         }
+
         await Task.Delay(1_000, token).ConfigureAwait(false);
 
+        // Reset all state variables
         StartFromOverworld = true;
+        _wasConnectedToPartner = false;
+        _cachedBoxOffset = null;
+
+        Log("Successfully recovered to overworld and reset state.");
         return true;
     }
 

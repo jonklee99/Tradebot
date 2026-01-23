@@ -393,7 +393,19 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             }
             try
             {
-                if (await IsConnectedOnline(ConnectedOffset, token).ConfigureAwait(false))
+                // Use try-catch for connection check to handle offset read failures
+                bool isConnected = false;
+                try
+                {
+                    isConnected = await IsConnectedOnline(ConnectedOffset, token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log($"Connection status check failed: {ex.Message}");
+                    isConnected = false;
+                }
+
+                if (isConnected)
                 {
                     Log("Connection established successfully.");
                     break; // Exit the loop if connected successfully
@@ -409,6 +421,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                     await Task.Delay(TimeSpan.FromMinutes(waitTime), token).ConfigureAwait(false);
                     Log("Attempting to reopen the game.");
                     await ReOpenGame(Hub.Config, token).ConfigureAwait(false);
+                    await InitializeSessionOffsets(token).ConfigureAwait(false); // Re-cache offsets after restart
                     attemptCount = 0; // Reset attempt count
                 }
 
@@ -439,6 +452,7 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                     await Task.Delay(TimeSpan.FromMinutes(waitTime), token).ConfigureAwait(false);
                     Log("Attempting to reopen the game.");
                     await ReOpenGame(Hub.Config, token).ConfigureAwait(false);
+                    await InitializeSessionOffsets(token).ConfigureAwait(false); // Re-cache offsets after restart
                     attemptCount = 0;
                 }
             }
@@ -566,14 +580,24 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             return;
 
         detail.IsProcessing = false;
+
+        // Log the failure reason for debugging
+        Log($"Trade aborted for {detail.Trainer.TrainerName}. Reason: {result}");
+
         if (result.ShouldAttemptRetry() && detail.Type != PokeTradeType.Random && !detail.IsRetry)
         {
             detail.IsRetry = true;
             Hub.Queues.Enqueue(type, detail, Math.Min(priority, PokeTradePriorities.Tier2));
+            Log($"Requeuing trade for {detail.Trainer.TrainerName} for retry (Priority: {priority})");
             detail.SendNotification(this, "Oops! Something happened. I'll requeue you for another attempt.");
+
+            // Add a small delay to prevent rapid-fire retries
+            Task.Delay(2_000).Wait();
         }
         else
         {
+            if (detail.IsRetry)
+                Log($"Trade failed after retry for {detail.Trainer.TrainerName}. Not requeuing again.");
             detail.SendNotification(this, $"Oops! Something happened. Canceling the trade: {result}.");
             detail.TradeCanceled(this, result);
         }
@@ -1607,40 +1631,71 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
     // Try to avoid pressing A which can put us back in the portal with the long load time.
     private async Task<bool> RecoverToOverworld(CancellationToken token)
     {
-        if (await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
-            return true;
+        Log("Attempting recovery to overworld...");
 
-        Log("Attempting to recover to overworld.");
+        // First check if we're already on the overworld
+        if (await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+        {
+            Log("Already on overworld, resetting state...");
+            StartFromOverworld = true;
+            LastTradeDistributionFixed = false;
+            return true;
+        }
+
+        Log("Not on overworld, attempting navigation back...");
         var attempts = 0;
         while (!await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
         {
             attempts++;
             if (attempts >= 30)
+            {
+                Log($"Failed to recover after {attempts} attempts.");
                 break;
+            }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
             if (await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+            {
+                Log($"Recovered to overworld after {attempts} B presses.");
                 break;
+            }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
             if (await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+            {
+                Log($"Recovered to overworld after {attempts * 2} B presses.");
                 break;
+            }
 
             if (await IsInBox(PortalOffset, token).ConfigureAwait(false))
+            {
+                Log("Detected in trade box, pressing A to exit...");
                 await Click(A, 1_000, token).ConfigureAwait(false);
+            }
         }
 
-        // We didn't make it for some reason.
+        // We didn't make it for some reason - restart the game
         if (!await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
         {
-            Log("Failed to recover to overworld, rebooting the game.");
+            Log("Failed to recover to overworld via navigation. Rebooting the game...");
             await RestartGameSV(token).ConfigureAwait(false);
+            await Task.Delay(5_000, token).ConfigureAwait(false);
+
+            // Verify we're on overworld after restart
+            if (!await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+            {
+                Log("ERROR: Still not on overworld after game restart!");
+                return false;
+            }
         }
+
         await Task.Delay(1_000, token).ConfigureAwait(false);
 
-        // Force the bot to go through all the motions again on its first pass.
+        // Force the bot to go through all the motions again on its first pass
         StartFromOverworld = true;
         LastTradeDistributionFixed = false;
+
+        Log("Successfully recovered to overworld and reset state.");
         return true;
     }
 
