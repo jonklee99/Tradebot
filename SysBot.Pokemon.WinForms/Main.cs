@@ -317,16 +317,14 @@ public sealed partial class Main : Form
 
     private async void B_Start_Click(object sender, EventArgs e)
         {
-            await Task.Delay(3_500).ConfigureAwait(false);
+            await Task.Delay(1_000).ConfigureAwait(false);
             SaveCurrentConfig();
-            LogUtil.LogInfo("Restarting all the consoles...", "Form");
+            LogUtil.LogInfo("Starting all bots...", "Form");
             RunningEnvironment.InitializeStart();
-            SendAll(BotControlCommand.RebootAndStop);
-            await Task.Delay(5_000).ConfigureAwait(false); // Add a delay before restarting the bot
-            SendAll(BotControlCommand.Start); // Start the bot after the delay
+            SendAll(BotControlCommand.Start);
             Tab_Logs.Select();
             if (Bots.Count == 0)
-                WinFormsUtil.Alert("No bots configured, but all supporting services have been issued the reboot command.");
+                WinFormsUtil.Alert("No bots configured, but all supporting services have been started.");
         }
 
     private void UpdateRunnerAndUI()
