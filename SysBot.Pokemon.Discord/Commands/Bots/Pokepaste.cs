@@ -201,6 +201,7 @@ namespace SysBot.Pokemon.Discord
                 var showdownText = match.Groups[1].Value;
                 showdownText = System.Net.WebUtility.HtmlDecode(Regex.Replace(showdownText, "<.*?>", string.Empty));
                 showdownText = Regex.Replace(showdownText, @"(?i)(?<=\bLevel: )\d+", "100");
+                showdownText = Regex.Replace(showdownText, @"(?m)^\s*\.Version=", "~=Version=", RegexOptions.IgnoreCase);
                 var set = new ShowdownSet(showdownText);
                 showdownSets.Add(set);
             }

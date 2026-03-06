@@ -1,4 +1,5 @@
 using PKHeX.Core;
+using System.Text.RegularExpressions;
 
 namespace SysBot.Pokemon;
 
@@ -41,6 +42,7 @@ public static class ShowdownUtil
         }
 
         var finalset = restorenick + setstring;
+        finalset = Regex.Replace(finalset, @"(?m)^\s*\.Version=", "~=Version=", RegexOptions.IgnoreCase);
         return new ShowdownSet(finalset);
     }
 }

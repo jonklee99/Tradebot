@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace SysBot.Pokemon.Discord;
@@ -184,9 +185,15 @@ public static class ReusableActions
         }
     }
 
-    public static string StripCodeBlock(string str) => str
-        .Replace("`\n", "")
-        .Replace("\n`", "")
-        .Replace("`", "")
-        .Trim();
+    public static string StripCodeBlock(string str)
+    {
+        str = str
+            .Replace("`\n", "")
+            .Replace("\n`", "")
+            .Replace("`", "")
+            .Trim();
+        // Convert .Version= batch instruction to ~=Version= encounter filter so users can write
+        // ".Version=X" and have it correctly restrict the encounter search to that game version.
+        return Regex.Replace(str, @"(?m)^\s*\.Version=", "~=Version=", RegexOptions.IgnoreCase);
+    }
 }
