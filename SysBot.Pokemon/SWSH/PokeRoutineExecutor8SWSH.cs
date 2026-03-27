@@ -238,7 +238,9 @@ public abstract class PokeRoutineExecutor8SWSH(PokeBotState Config) : PokeRoutin
         }
         var ofs = GetBoxSlotOffset(box, slot);
         pkm.ResetPartyStats();
-        return Connection.WriteBytesAsync(pkm.EncryptedPartyData, ofs, token);
+        var partyData = new byte[pkm.SIZE_PARTY];
+        pkm.WriteEncryptedDataParty(partyData);
+        return Connection.WriteBytesAsync(partyData, ofs, token);
     }
 
     public Task SetCurrentBox(byte box, CancellationToken token)

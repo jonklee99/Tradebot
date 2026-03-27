@@ -129,7 +129,9 @@ public static class ReusableActions
         try
         {
             // Write the file
-            await File.WriteAllBytesAsync(tmp, pkm.DecryptedPartyData);
+            var decryptedData = new byte[pkm.SIZE_PARTY];
+            pkm.WriteDecryptedDataParty(decryptedData);
+            await File.WriteAllBytesAsync(tmp, decryptedData);
 
             // Send the file and WAIT for it to complete
             await channel.SendFileAsync(tmp, msg);
@@ -162,7 +164,9 @@ public static class ReusableActions
         try
         {
             // Write the file
-            await File.WriteAllBytesAsync(tmp, pkm.DecryptedPartyData);
+            var decryptedData = new byte[pkm.SIZE_PARTY];
+            pkm.WriteDecryptedDataParty(decryptedData);
+            await File.WriteAllBytesAsync(tmp, decryptedData);
 
             // Send the file and WAIT for it to complete
             await user.SendFileAsync(tmp, msg);
