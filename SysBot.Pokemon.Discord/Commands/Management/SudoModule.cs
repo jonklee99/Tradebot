@@ -222,6 +222,44 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         }
     }
 
+    [Command("clearTradeProfile")]
+    [Alias("ctp")]
+    [Summary("Clears the trade profile for a mentioned user.")]
+    [RequireSudo]
+    public async Task ClearTradeProfileMentionAsync([Remainder] string _)
+    {
+        var users = Context.Message.MentionedUsers;
+        if (!users.Any())
+        {
+            await ReplyAsync("Please mention a user to clear their trade profile.").ConfigureAwait(false);
+            return;
+        }
+
+        var storage = new TradeCodeStorage();
+        var results = new List<string>();
+        foreach (var user in users)
+        {
+            bool success = storage.DeleteTradeCode(user.Id);
+            results.Add(success
+                ? $"Cleared trade profile for {user.Username}."
+                : $"No trade profile found for {user.Username}.");
+        }
+        await ReplyAsync(string.Join("\n", results)).ConfigureAwait(false);
+    }
+
+    [Command("clearTradeProfile")]
+    [Alias("ctp")]
+    [Summary("Clears the trade profile for a user by their Discord ID.")]
+    [RequireSudo]
+    public async Task ClearTradeProfileIDAsync(ulong userId)
+    {
+        var storage = new TradeCodeStorage();
+        bool success = storage.DeleteTradeCode(userId);
+        await ReplyAsync(success
+            ? $"Cleared trade profile for user ID {userId}."
+            : $"No trade profile found for user ID {userId}.").ConfigureAwait(false);
+    }
+
     protected static IEnumerable<ulong> GetIDs(string content)
     {
         return content.Split([",", ", ", " "], StringSplitOptions.RemoveEmptyEntries)
