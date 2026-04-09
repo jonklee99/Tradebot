@@ -274,8 +274,8 @@ public sealed class SysCord<T> where T : PKM, new()
         var botName = string.IsNullOrEmpty(SysCordSettings.HubConfig.BotName) ? "SysBot" : SysCordSettings.HubConfig.BotName;
         var fullStatusMessage = $"**Status**: {botName} is {status}!";
         var thumbnailUrl = status == "Online"
-            ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/botgo.png"
-            : "https://raw.githubusercontent.com/hexbyt3/sprites/main/botstop.png";
+            ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/botgo.png"
+            : "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/botstop.png";
 
         var embed = new EmbedBuilder()
             .WithTitle("Bot Status Report")

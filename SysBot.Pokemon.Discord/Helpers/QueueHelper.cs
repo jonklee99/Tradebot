@@ -184,11 +184,11 @@ public static class QueueHelper<T> where T : PKM, new()
         {
             (string embedImageUrl, DiscordColor embedColor) = await PrepareEmbedDetails(pk);
 
-            embedData.EmbedImageUrl = isMysteryEgg ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/mysteryegg3.png" :
-                                       type == PokeRoutineType.Dump ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/AltBallImg/128x128/dumpball.png" :
-                                       type == PokeRoutineType.Clone ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/clonepod.png" :
-                                       type == PokeRoutineType.SeedCheck ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/specialrequest.png" :
-                                       type == PokeRoutineType.FixOT ? "https://raw.githubusercontent.com/hexbyt3/sprites/main/AltBallImg/128x128/rocketball.png" :
+            embedData.EmbedImageUrl = isMysteryEgg ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/mysteryegg3.png" :
+                                       type == PokeRoutineType.Dump ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/AltBallImg/128x128/dumpball.png" :
+                                       type == PokeRoutineType.Clone ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/clonepod.png" :
+                                       type == PokeRoutineType.SeedCheck ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/specialrequest.png" :
+                                       type == PokeRoutineType.FixOT ? "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/AltBallImg/128x128/rocketball.png" :
                                        embedImageUrl;
 
             embedData.HeldItemUrl = string.Empty;
@@ -238,23 +238,23 @@ public static class QueueHelper<T> where T : PKM, new()
             {
                 if (homeTrack.HasTracker && isNonNative)
                 {
-                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/exclamation.gif";
                     embedBuilder.AddField("**__Notice__**: **This Pokemon is Non-Native & Has Home Tracker.**", "*AutoOT not applied.*");
                 }
                 else if (homeTrack.HasTracker)
                 {
-                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/exclamation.gif";
                     embedBuilder.AddField("**__Notice__**: **Home Tracker Detected.**", "*AutoOT not applied.*");
                 }
                 else if (isNonNative)
                 {
-                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                    embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/exclamation.gif";
                     embedBuilder.AddField("**__Notice__**: **This Pokemon is Non-Native.**", "*Cannot enter HOME & AutoOT not applied.*");
                 }
             }
             else if (isNonNative)
             {
-                embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/exclamation.gif";
                 embedBuilder.AddField("**__Notice__**: **This Pokemon is Non-Native.**", "*Cannot enter HOME & AutoOT not applied.*");
             }
 
@@ -440,7 +440,7 @@ public static class QueueHelper<T> where T : PKM, new()
                     {
                         if (homeTrack.HasTracker)
                         {
-                            embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/hexbyt3/sprites/main/exclamation.gif";
+                            embedBuilder.Footer.IconUrl = "https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/exclamation.gif";
                             embedBuilder.AddField("**__Notice__**: **Home Tracker Detected.**", "*AutoOT not applied.*");
                         }
                     }
@@ -523,8 +523,8 @@ public static class QueueHelper<T> where T : PKM, new()
         {
             string eggImageUrl = GetEggTypeImageUrl(pk);
             speciesImageUrl = TradeExtensions<T>.PokeImg(pk, false, true, null);
-            System.Drawing.Image combinedImage = await OverlaySpeciesOnEgg(eggImageUrl, speciesImageUrl);
-            embedImageUrl = SaveImageLocally(combinedImage);
+            System.Drawing.Image? combinedImage = await OverlaySpeciesOnEgg(eggImageUrl, speciesImageUrl);
+            embedImageUrl = combinedImage != null ? SaveImageLocally(combinedImage) : speciesImageUrl;
         }
         else
         {
@@ -544,7 +544,7 @@ public static class QueueHelper<T> where T : PKM, new()
             ballName = ballName.Replace(" ", "").ToLower();
         }
 
-        string ballImgUrl = $"https://raw.githubusercontent.com/hexbyt3/sprites/main/AltBallImg/20x20/{ballName}.png";
+        string ballImgUrl = $"https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/AltBallImg/20x20/{ballName}.png";
 
         if (Uri.TryCreate(embedImageUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeFile)
         {
@@ -621,14 +621,17 @@ public static class QueueHelper<T> where T : PKM, new()
         }
     }
 
-    private static async Task<System.Drawing.Image> OverlaySpeciesOnEgg(string eggImageUrl, string speciesImageUrl)
+    private static async Task<System.Drawing.Image?> OverlaySpeciesOnEgg(string eggImageUrl, string speciesImageUrl)
     {
         System.Drawing.Image? eggImage = await LoadImageFromUrl(eggImageUrl);
         System.Drawing.Image? speciesImage = await LoadImageFromUrl(speciesImageUrl);
-        
+
         if (eggImage == null || speciesImage == null)
         {
-            throw new InvalidOperationException("Failed to load egg or species image.");
+            eggImage?.Dispose();
+            speciesImage?.Dispose();
+            Console.WriteLine("Failed to load egg or species image — skipping overlay.");
+            return null;
         }
 
 #pragma warning disable CA1416 // Validate platform compatibility
@@ -666,30 +669,30 @@ public static class QueueHelper<T> where T : PKM, new()
 
     private static async Task<System.Drawing.Image?> LoadImageFromUrl(string url)
     {
-        using HttpClient client = new();
-        HttpResponseMessage response = await client.GetAsync(url);
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"Failed to load image from {url}. Status code: {response.StatusCode}");
-            return null;
-        }
-
-        Stream stream = await response.Content.ReadAsStreamAsync();
-        if (stream == null || stream.Length == 0)
-        {
-            Console.WriteLine($"No data or empty stream received from {url}");
-            return null;
-        }
-
         try
         {
+            using HttpClient client = new();
+            HttpResponseMessage response = await client.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Failed to load image from {url}. Status code: {response.StatusCode}");
+                return null;
+            }
+
+            Stream stream = await response.Content.ReadAsStreamAsync();
+            if (stream == null || stream.Length == 0)
+            {
+                Console.WriteLine($"No data or empty stream received from {url}");
+                return null;
+            }
+
 #pragma warning disable CA1416 // Validate platform compatibility
             return System.Drawing.Image.FromStream(stream);
 #pragma warning restore CA1416 // Validate platform compatibility
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or ArgumentException)
         {
-            Console.WriteLine($"Failed to create image from stream. URL: {url}, Exception: {ex}");
+            Console.WriteLine($"Failed to load image from {url}: {ex.Message}");
             return null;
         }
     }
@@ -858,7 +861,7 @@ public static class QueueHelper<T> where T : PKM, new()
             ? typeNames[typeIndex]
             : "Normal";
 
-        return $"https://raw.githubusercontent.com/hexbyt3/HomeImages/ebd562941ff77b1889a297ee50eacfa8cb3589de/128x128/Egg_{typeName}.png";
+        return $"https://raw.githubusercontent.com/Secludedly/ZE-FusionBot-Sprite-Images/main/Eggs/Egg_{typeName}.png";
     }
 
     public static (string, Embed) CreateLGLinkCodeSpriteEmbed(List<Pictocodes> lgcode)
