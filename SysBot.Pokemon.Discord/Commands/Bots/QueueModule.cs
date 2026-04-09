@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Commands;
+using Discord.Net;
 using PKHeX.Core;
 using SysBot.Base;
 using System;
@@ -215,6 +216,10 @@ public class QueueModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await sentMessage.DeleteAsync();
             if (messageToDelete != null)
                 await messageToDelete.DeleteAsync();
+        }
+        catch (HttpException)
+        {
+            // Ignore transient Discord API errors (unknown message, service unavailable, etc.)
         }
         catch (Exception ex)
         {

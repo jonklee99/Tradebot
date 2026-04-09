@@ -115,9 +115,9 @@ public static class Helpers<T> where T : PKM, new()
         {
             await message.DeleteAsync();
         }
-        catch (HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownMessage)
+        catch (HttpException)
         {
-            // Ignore Unknown Message exception
+            // Ignore transient Discord API errors (unknown message, service unavailable, etc.)
         }
     }
 
@@ -314,8 +314,15 @@ public static class Helpers<T> where T : PKM, new()
 
         string userMention = context.User.Mention;
         string messageContent = $"{userMention}, here's the report for your request:";
-        var message = await context.Channel.SendMessageAsync(text: messageContent, embed: embedBuilder.Build()).ConfigureAwait(false);
-        _ = DeleteMessagesAfterDelayAsync(message, context.Message, 30);
+        try
+        {
+            var message = await context.Channel.SendMessageAsync(text: messageContent, embed: embedBuilder.Build()).ConfigureAwait(false);
+            _ = DeleteMessagesAfterDelayAsync(message, context.Message, 30);
+        }
+        catch (HttpException ex)
+        {
+            LogUtil.LogSafe(ex, nameof(Helpers<T>));
+        }
     }
 
     public static T? GetRequest(Download<PKM> dl)

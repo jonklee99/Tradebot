@@ -12,93 +12,115 @@ public class TradeCodeStorage
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
+    private static readonly object _fileLock = new();
     private Dictionary<ulong, TradeCodeDetails>? _tradeCodeDetails;
     public TradeCodeStorage() => LoadFromFile();
     public bool DeleteTradeCode(ulong trainerID)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.Remove(trainerID))
+        lock (_fileLock)
         {
-            SaveToFile();
-            return true;
+            LoadFromFile();
+            if (_tradeCodeDetails!.Remove(trainerID))
+            {
+                SaveToFile();
+                return true;
+            }
+            return false;
         }
-        return false;
     }
     public int GetTradeCode(ulong trainerID)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            details.TradeCount++;
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                details.TradeCount++;
+                SaveToFile();
+                return details.Code;
+            }
+            var code = GenerateRandomTradeCode();
+            _tradeCodeDetails![trainerID] = new TradeCodeDetails { Code = code, TradeCount = 1 };
             SaveToFile();
-            return details.Code;
+            return code;
         }
-        var code = GenerateRandomTradeCode();
-        _tradeCodeDetails![trainerID] = new TradeCodeDetails { Code = code, TradeCount = 1 };
-        SaveToFile();
-        return code;
     }
     public int GetTradeCount(ulong trainerID)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            return details.TradeCount;
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                return details.TradeCount;
+            }
+            return 0;
         }
-        return 0;
     }
     public TradeCodeDetails? GetTradeDetails(ulong trainerID)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            return details;
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                return details;
+            }
+            return null;
         }
-        return null;
     }
     public void UpdateTradeDetails(ulong trainerID, string ot, int tid, int sid)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            details.OT = ot;
-            details.TID = tid;
-            details.SID = sid;
-            SaveToFile();
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                details.OT = ot;
+                details.TID = tid;
+                details.SID = sid;
+                SaveToFile();
+            }
         }
     }
 
     // New overload that includes gender and language parameters
     public void UpdateTradeDetails(ulong trainerID, string ot, int tid, int sid, byte? gender = null, int? language = null)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            details.OT = ot;
-            details.TID = tid;
-            details.SID = sid;
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                details.OT = ot;
+                details.TID = tid;
+                details.SID = sid;
 
-            // Only update if values are provided
-            if (gender.HasValue)
-                details.Gender = gender;
+                // Only update if values are provided
+                if (gender.HasValue)
+                    details.Gender = gender;
 
-            if (language.HasValue)
-                details.Language = language;
+                if (language.HasValue)
+                    details.Language = language;
 
-            SaveToFile();
+                SaveToFile();
+            }
         }
     }
 
     public bool UpdateTradeCode(ulong trainerID, int newCode)
     {
-        LoadFromFile();
-        if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+        lock (_fileLock)
         {
-            details.Code = newCode;
-            SaveToFile();
-            return true;
+            LoadFromFile();
+            if (_tradeCodeDetails!.TryGetValue(trainerID, out var details))
+            {
+                details.Code = newCode;
+                SaveToFile();
+                return true;
+            }
+            return false;
         }
-        return false;
     }
     private static int GenerateRandomTradeCode()
     {
