@@ -16,7 +16,7 @@ namespace SysBot.Pokemon.Discord;
 // Copyright 2017, Christopher F. <foxbot@protonmail.com>
 public class InfoModule : ModuleBase<SocketCommandContext>
 {
-    private const string detail = "I am an open-source Pokemon Trading Discord bot developed by hexbyt3.";
+    private const string detail = "I am an open-source Pokemon Trading Discord bot developed by Eternal Pokémon Paradise.";
 
     private const string repo = "https://github.com/jonklee99/Tradebot";
 
