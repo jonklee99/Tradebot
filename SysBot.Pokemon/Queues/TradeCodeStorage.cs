@@ -16,7 +16,7 @@ public class TradeCodeStorage
     // Named mutex so multiple bot processes sharing the same file are properly serialized.
     private static readonly Mutex _fileMutex = new(false, "Global\\SysBotTradeCodeStorage");
     private Dictionary<ulong, TradeCodeDetails>? _tradeCodeDetails;
-    public TradeCodeStorage() => LoadFromFile();
+    public TradeCodeStorage() => WithFileLock(LoadFromFile);
 
     private static void WithFileLock(Action action)
     {
@@ -29,6 +29,7 @@ public class TradeCodeStorage
         catch (AbandonedMutexException)
         {
             // Another process crashed while holding the mutex; we now own it.
+            acquired = true;
             action();
         }
         finally
