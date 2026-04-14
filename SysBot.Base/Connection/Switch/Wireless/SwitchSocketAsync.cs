@@ -44,6 +44,22 @@ public sealed class SwitchSocketAsync : SwitchSocket, ISwitchConnectionAsync
             throw new Exception("Failed to connect to device.");
         }
         Connection.EndConnect(result);
+
+        // Enable TCP keepalive to detect dead connections quickly.
+        // Without this, a silently dropped connection (Switch sleeps, Wi-Fi drops)
+        // causes ReceiveAsync to block indefinitely with Windows' default 2-hour idle timeout.
+        try
+        {
+            Connection.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            Connection.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, 30);     // 30s idle before probes start
+            Connection.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, 10); // 10s between probes
+            Connection.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3); // 3 probes before giving up (~60s total)
+        }
+        catch
+        {
+            // Keepalive configuration is best-effort; ignore if unsupported on this platform.
+        }
+
         Log("Connected!");
         Label = Name;
     }
@@ -159,7 +175,16 @@ public sealed class SwitchSocketAsync : SwitchSocket, ISwitchConnectionAsync
     {
         await SendAsync(command, token).ConfigureAwait(false);
         var buffer = new byte[length];
-        await Connection.ReceiveAsync(buffer, token);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            await Connection.ReceiveAsync(buffer, timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new SocketException((int)SocketError.TimedOut);
+        }
         return buffer;
     }
 
@@ -258,7 +283,22 @@ public sealed class SwitchSocketAsync : SwitchSocket, ISwitchConnectionAsync
         var size = (length * 2) + 1;
         var buffer = ArrayPool<byte>.Shared.Rent(size);
         var mem = buffer.AsMemory()[..size];
-        await Connection.ReceiveAsync(mem, token);
+
+        // Combine the caller's token with a 30-second read timeout.
+        // This prevents an indefinite hang when the Switch connection is silently
+        // dropped (e.g., Switch enters sleep mode, network interruption).
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            await Connection.ReceiveAsync(mem, timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            ArrayPool<byte>.Shared.Return(buffer, true);
+            throw new SocketException((int)SocketError.TimedOut);
+        }
+
         var result = DecodeResult(mem, length);
         ArrayPool<byte>.Shared.Return(buffer, true);
         return result;
