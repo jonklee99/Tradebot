@@ -45,5 +45,8 @@ public class RecoverySettings
     [Category(Recovery), Description("Minimum uptime in seconds before a bot is considered stable (resets recovery attempts).")]
     public int MinimumStableUptimeSeconds { get; set; } = 600; // 10 minutes
 
+    [Category(Recovery), Description("Minutes of inactivity before a running bot is considered frozen and force-stopped for recovery. Set to 0 to disable the watchdog.")]
+    public int FrozenBotTimeoutMinutes { get; set; } = 15;
+
     public override string ToString() => "Bot Recovery Settings";
 }

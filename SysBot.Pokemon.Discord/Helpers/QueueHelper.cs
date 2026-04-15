@@ -843,7 +843,16 @@ public static class QueueHelper<T> where T : PKM, new()
                 }
                 break;
         }
-        await context.Channel.SendMessageAsync(message).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(message))
+            return;
+        try
+        {
+            await context.Channel.SendMessageAsync(message).ConfigureAwait(false);
+        }
+        catch (HttpException httpEx)
+        {
+            Base.LogUtil.LogError($"QueueHelper: Unable to send message to channel ({(int?)httpEx.DiscordCode ?? (int)httpEx.HttpCode}): {httpEx.Reason}", nameof(QueueHelper<T>));
+        }
     }
 
     private static string GetEggTypeImageUrl(T pk)

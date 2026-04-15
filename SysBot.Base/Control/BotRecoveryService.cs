@@ -112,6 +112,7 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
     private async Task MonitorAndRecoverBots(CancellationToken cancellationToken)
     {
         var botsToRecover = new List<(BotSource<T> bot, BotRecoveryState state)>();
+        var frozenBots = new List<(BotSource<T> bot, TimeSpan silent)>();
 
         await _recoveryLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -132,14 +133,26 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
                         state.IsRecovering = true;
                     }
                 }
-                else if (bot.IsRunning && state.ConsecutiveFailures > 0)
+                else if (bot.IsRunning && !state.IsRecovering)
                 {
-                    // Bot is running, check if it's been stable long enough to reset attempts
-                    var uptime = DateTime.UtcNow - state.LastStartTime;
-                    if (uptime.TotalSeconds >= _config.MinimumStableUptimeSeconds)
+                    // Check for frozen bot: running but no log activity for too long
+                    if (_config.FrozenBotTimeoutMinutes > 0 &&
+                        LogUtil.BotLastActivity.TryGetValue(botName, out var lastActivity))
                     {
-                        state.ConsecutiveFailures = 0;
-                        LogUtil.LogInfo("Recovery", $"Bot {botName} has been stable for {uptime.TotalMinutes:F1} minutes. Resetting recovery attempts.");
+                        var silent = DateTime.Now - lastActivity;
+                        if (silent.TotalMinutes >= _config.FrozenBotTimeoutMinutes)
+                            frozenBots.Add((bot, silent));
+                    }
+
+                    // Bot is running — check if stable long enough to reset failure counter
+                    if (state.ConsecutiveFailures > 0)
+                    {
+                        var uptime = DateTime.UtcNow - state.LastStartTime;
+                        if (uptime.TotalSeconds >= _config.MinimumStableUptimeSeconds)
+                        {
+                            state.ConsecutiveFailures = 0;
+                            LogUtil.LogInfo("Recovery", $"Bot {botName} has been stable for {uptime.TotalMinutes:F1} minutes. Resetting recovery attempts.");
+                        }
                     }
                 }
             }
@@ -149,12 +162,31 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
             _recoveryLock.Release();
         }
 
-        // Attempt recovery for crashed bots
+        // Force-stop frozen bots so the next monitor cycle restarts them
+        foreach (var (bot, silent) in frozenBots)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            var botName = bot.Bot.Connection.Name;
+            LogUtil.LogError($"Bot {botName} has been silent for {silent.TotalMinutes:F0} minutes (threshold: {_config.FrozenBotTimeoutMinutes} min). Force-stopping for recovery.", "Recovery");
+
+            try
+            {
+                bot.Stop();
+            }
+            catch (Exception ex)
+            {
+                LogUtil.LogError($"Failed to force-stop frozen bot {botName}: {ex.Message}", "Recovery");
+            }
+        }
+
+        // Attempt recovery for crashed/stopped bots
         foreach (var (bot, state) in botsToRecover)
         {
             if (cancellationToken.IsCancellationRequested)
                 break;
-                
+
             await AttemptRecovery(bot, state, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -378,6 +410,10 @@ public class RecoveryConfiguration
     public int MinimumStableUptimeSeconds { get; set; } = 600;
     public bool NotifyOnRecoveryAttempt { get; set; } = true;
     public bool NotifyOnRecoveryFailure { get; set; } = true;
+    /// <summary>
+    /// Minutes of silence before a running bot is force-stopped. 0 = watchdog disabled.
+    /// </summary>
+    public int FrozenBotTimeoutMinutes { get; set; } = 15;
 }
 
 /// <summary>

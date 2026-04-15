@@ -66,6 +66,12 @@ public static class LogUtil
     public static DateTime LastLogged { get; private set; } = DateTime.Now;
 
     /// <summary>
+    /// Tracks the last time each bot logged a message, keyed by bot identity (e.g. "Lugia-245712").
+    /// Used by the watchdog to detect frozen-but-still-running bots.
+    /// </summary>
+    public static readonly ConcurrentDictionary<string, DateTime> BotLastActivity = new();
+
+    /// <summary>
     /// Gets or creates a per-bot logger for the specified bot identity
     /// </summary>
     /// <param name="identity">Bot identifier (e.g., "USB-1", "192.168.1.100")</param>
@@ -186,6 +192,10 @@ public static class LogUtil
 
     public static void LogError(string message, string identity)
     {
+        // Track last activity for watchdog (trainer-identified bots only)
+        if (IsTrainerIdentifier(identity))
+            BotLastActivity[identity] = DateTime.Now;
+
         // Log to master log
         if (LogConfig.EnableMasterLog)
             Logger.Log(LogLevel.Error, $"{identity} {message}");
@@ -220,6 +230,10 @@ public static class LogUtil
 
     public static void LogInfo(string message, string identity)
     {
+        // Track last activity for watchdog (trainer-identified bots only)
+        if (IsTrainerIdentifier(identity))
+            BotLastActivity[identity] = DateTime.Now;
+
         // Log to master log
         if (LogConfig.EnableMasterLog)
             Logger.Log(LogLevel.Info, $"{identity} {message}");
