@@ -381,19 +381,20 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
     private async Task<bool> ConnectToOnline(PokeTradeHubConfig config, CancellationToken token)
     {
         int attemptCount = 0;
+        int cycleCount = 0;
         const int maxAttempt = 5;
-        const int waitTime = 10; // time in minutes to wait after max attempts
+        const int maxCycles = 3;   // give up after 3 game-restart cycles (~45 min total)
+        const int waitTime = 10;   // minutes to wait between cycles
 
-        while (true) // Loop until a successful connection is made or the task is canceled
+        while (cycleCount < maxCycles)
         {
             if (token.IsCancellationRequested)
             {
                 Log("Connection attempt canceled.");
-                break;
+                return false;
             }
             try
             {
-                // Use try-catch for connection check to handle offset read failures
                 bool isConnected = false;
                 try
                 {
@@ -408,37 +409,40 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                 if (isConnected)
                 {
                     Log("Connection established successfully.");
-                    break; // Exit the loop if connected successfully
+                    break;
                 }
 
                 if (attemptCount >= maxAttempt)
                 {
-                    Log($"Failed to connect after {maxAttempt} attempts. Assuming a softban. Initiating wait for {waitTime} minutes before retrying.");
-                    // Waiting process
+                    cycleCount++;
+                    if (cycleCount >= maxCycles)
+                    {
+                        Log($"Failed to connect after {maxCycles} game-restart cycles. Giving up to allow bot recovery.");
+                        return false;
+                    }
+
+                    Log($"Failed to connect after {maxAttempt} attempts (cycle {cycleCount}/{maxCycles}). Assuming a softban. Waiting {waitTime} minutes before retrying.");
                     await Click(B, 0_500, token).ConfigureAwait(false);
                     await Click(B, 0_500, token).ConfigureAwait(false);
                     Log($"Waiting for {waitTime} minutes before attempting to reconnect.");
                     await Task.Delay(TimeSpan.FromMinutes(waitTime), token).ConfigureAwait(false);
                     Log("Attempting to reopen the game.");
                     await ReOpenGame(Hub.Config, token).ConfigureAwait(false);
-                    await InitializeSessionOffsets(token).ConfigureAwait(false); // Re-cache offsets after restart
-                    attemptCount = 0; // Reset attempt count
+                    await InitializeSessionOffsets(token).ConfigureAwait(false);
+                    attemptCount = 0;
+                    continue;
                 }
 
                 attemptCount++;
                 Log($"Attempt {attemptCount} of {maxAttempt}: Trying to connect online...");
 
-                // Connection attempt logic
                 await Click(X, 3_000, token).ConfigureAwait(false);
                 await Click(L, 5_000 + config.Timings.ExtraTimeConnectOnline, token).ConfigureAwait(false);
-
-                // Wait a bit before rechecking the connection status
-                await Task.Delay(5000, token).ConfigureAwait(false); // Wait 5 seconds before rechecking
+                await Task.Delay(5_000, token).ConfigureAwait(false);
 
                 if (attemptCount < maxAttempt)
                 {
                     Log("Rechecking the online connection status...");
-                    // Wait and recheck logic
                     await Click(B, 0_500, token).ConfigureAwait(false);
                 }
             }
@@ -448,11 +452,18 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
 
                 if (attemptCount >= maxAttempt)
                 {
-                    Log($"Failed to connect after {maxAttempt} attempts due to exception. Waiting for {waitTime} minutes before retrying.");
+                    cycleCount++;
+                    if (cycleCount >= maxCycles)
+                    {
+                        Log($"Failed to connect after {maxCycles} game-restart cycles due to exception. Giving up to allow bot recovery.");
+                        return false;
+                    }
+
+                    Log($"Failed to connect after {maxAttempt} attempts due to exception (cycle {cycleCount}/{maxCycles}). Waiting {waitTime} minutes before retrying.");
                     await Task.Delay(TimeSpan.FromMinutes(waitTime), token).ConfigureAwait(false);
                     Log("Attempting to reopen the game.");
                     await ReOpenGame(Hub.Config, token).ConfigureAwait(false);
-                    await InitializeSessionOffsets(token).ConfigureAwait(false); // Re-cache offsets after restart
+                    await InitializeSessionOffsets(token).ConfigureAwait(false);
                     attemptCount = 0;
                 }
             }

@@ -72,6 +72,12 @@ public static class LogUtil
     public static readonly ConcurrentDictionary<string, DateTime> BotLastActivity = new();
 
     /// <summary>
+    /// Maps connection name (IP/USB) to trainer identifier (e.g. "192.168.1.8" -> "Roaring Moon-536394").
+    /// Populated when a bot is identified. Used by the watchdog to resolve the correct BotLastActivity key.
+    /// </summary>
+    public static readonly ConcurrentDictionary<string, string> ConnectionToTrainerMap = new();
+
+    /// <summary>
     /// Gets or creates a per-bot logger for the specified bot identity
     /// </summary>
     /// <param name="identity">Bot identifier (e.g., "USB-1", "192.168.1.100")</param>
