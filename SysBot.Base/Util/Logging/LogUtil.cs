@@ -186,6 +186,9 @@ public static class LogUtil
     /// </summary>
     public static void FlushBufferedLogs(string earlyIdentifier, string trainerIdentifier)
     {
+        // Record the connection → trainer mapping so the frozen-bot watchdog can resolve the correct BotLastActivity key
+        ConnectionToTrainerMap[earlyIdentifier] = trainerIdentifier;
+
         if (LogBuffer.TryRemove(earlyIdentifier, out var bufferedLogs))
         {
             var botLogger = GetOrCreateBotLogger(trainerIdentifier);

@@ -135,9 +135,12 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
                 }
                 else if (bot.IsRunning && !state.IsRecovering)
                 {
-                    // Check for frozen bot: running but no log activity for too long
+                    // Check for frozen bot: running but no log activity for too long.
+                    // BotLastActivity is keyed by trainer identifier (e.g. "Lugia-245712"), but botName
+                    // is the connection name (e.g. "192.168.1.8"). Resolve via ConnectionToTrainerMap.
+                    var activityKey = LogUtil.ConnectionToTrainerMap.TryGetValue(botName, out var trainerKey) ? trainerKey : botName;
                     if (_config.FrozenBotTimeoutMinutes > 0 &&
-                        LogUtil.BotLastActivity.TryGetValue(botName, out var lastActivity))
+                        LogUtil.BotLastActivity.TryGetValue(activityKey, out var lastActivity))
                     {
                         var silent = DateTime.Now - lastActivity;
                         if (silent.TotalMinutes >= _config.FrozenBotTimeoutMinutes)
