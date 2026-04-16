@@ -128,7 +128,12 @@ public abstract class PokeBotRunner<T> : RecoverableBotRunner<PokeBotState>, IPo
         };
 
         InitializeRecovery(recoveryConfig);
-        
+
+        // Bots may have been added before StartAll() was called (e.g. via form UI at startup),
+        // so _recoveryService was null at Add() time and they were created as plain BotSource<T>.
+        // Convert them now so they get registered with the recovery service.
+        ConvertToRecoverable();
+
         if (Hub.Config.Recovery.EnableRecovery)
         {
             LogUtil.LogInfo("Bot recovery system is enabled", "Recovery");
