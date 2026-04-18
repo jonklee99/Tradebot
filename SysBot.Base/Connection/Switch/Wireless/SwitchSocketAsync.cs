@@ -279,16 +279,24 @@ public sealed class SwitchSocketAsync : SwitchSocket, ISwitchConnectionAsync
 
     private async Task<byte[]> ReadBytesFromCmdAsync(byte[] cmd, int length, CancellationToken token)
     {
-        await SendAsync(cmd, token).ConfigureAwait(false);
+        // Timeout covers both send and receive — if sys-botbase stops consuming its TCP buffer,
+        // SendAsync can block indefinitely without a timeout, causing a silent bot freeze.
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            await SendAsync(cmd, timeoutCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new SocketException((int)SocketError.TimedOut);
+        }
+
         var size = (length * 2) + 1;
         var buffer = ArrayPool<byte>.Shared.Rent(size);
         var mem = buffer.AsMemory()[..size];
 
-        // Combine the caller's token with a 30-second read timeout.
-        // This prevents an indefinite hang when the Switch connection is silently
-        // dropped (e.g., Switch enters sleep mode, network interruption).
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
         try
         {
             await Connection.ReceiveAsync(mem, timeoutCts.Token).ConfigureAwait(false);
