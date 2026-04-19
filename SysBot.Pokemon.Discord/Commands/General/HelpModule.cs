@@ -124,15 +124,19 @@ namespace SysBot.Pokemon.Discord
             }
             catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
             {
-                await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM because you have DMs disabled. Please enable DMs and try again.");
+                try { await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM because you have DMs disabled. Please enable DMs and try again."); } catch { }
+            }
+            catch (HttpException ex) when ((int)ex.HttpCode == 404 || ex.DiscordCode == DiscordErrorCode.UnknownMessage)
+            {
+                // Original message was deleted before we could reply — silently ignore.
             }
             catch (Exception ex)
             {
-                await ReplyAsync($"An error occurred while sending the DM: {ex.Message}");
+                try { await ReplyAsync($"An error occurred while sending the DM: {ex.Message}"); } catch { }
             }
 
             if (Context.Message is IUserMessage userMessage)
-                await userMessage.DeleteAsync().ConfigureAwait(false);
+                try { await userMessage.DeleteAsync().ConfigureAwait(false); } catch { }
         }
 
         [Command("help")]
@@ -169,11 +173,15 @@ namespace SysBot.Pokemon.Discord
             }
             catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.Forbidden)
             {
-                await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM because you have DMs disabled. Please enable DMs and try again.");
+                try { await ReplyAsync($"{Context.User.Mention}, I couldn't send you a DM because you have DMs disabled. Please enable DMs and try again."); } catch { }
+            }
+            catch (HttpException ex) when ((int)ex.HttpCode == 404 || ex.DiscordCode == DiscordErrorCode.UnknownMessage)
+            {
+                // Original message was deleted before we could reply — silently ignore.
             }
             catch (Exception ex)
             {
-                await ReplyAsync($"An error occurred while sending the DM: {ex.Message}");
+                try { await ReplyAsync($"An error occurred while sending the DM: {ex.Message}"); } catch { }
             }
 
             if (Context.Message is IUserMessage userMessage)

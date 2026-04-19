@@ -81,47 +81,52 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         // Only sends ONE notification when they're truly up next to avoid Discord spam
         _periodicUpdateTimer = new Timer(async _ =>
         {
-            if (!_isTradeActive)
-                return;
-
-            // Check the current position using the unique trade ID
-            var position = Hub.Queues.Info.CheckPosition(_traderID, _uniqueTradeID, PokeRoutineType.LinkTrade);
-            if (!position.InQueue)
-                return;
-
-            var currentPosition = position.Position < 1 ? 1 : position.Position;
-
-            // Store the latest position for future reference
-            _lastReportedPosition = currentPosition;
-
-            var botct = Hub.Bots.Count;
-
-            // Only send ONE notification when the user is truly up next (position 1 or ready to be processed)
-            if (position.InQueue && position.Detail != null)
+            try
             {
-                // Only notify when position is 1 (truly up next) and we haven't sent the notification yet
-                if (currentPosition == 1 && _initialUpdateSent && !_almostUpNotificationSent)
+                if (!_isTradeActive)
+                    return;
+
+                // Check the current position using the unique trade ID
+                var position = Hub.Queues.Info.CheckPosition(_traderID, _uniqueTradeID, PokeRoutineType.LinkTrade);
+                if (!position.InQueue)
+                    return;
+
+                var currentPosition = position.Position < 1 ? 1 : position.Position;
+
+                // Store the latest position for future reference
+                _lastReportedPosition = currentPosition;
+
+                // Only send ONE notification when the user is truly up next (position 1 or ready to be processed)
+                if (position.InQueue && position.Detail != null)
                 {
-                    // Send notification that they're up next - only sent ONCE
-                    _almostUpNotificationSent = true;
-
-                    var batchInfo = TotalBatchTrades > 1 ? $"\n\n**Important:** This is a batch trade with {TotalBatchTrades} Pokémon. Please stay in the trade until all are completed!" : "";
-
-                    var upNextEmbed = new EmbedBuilder
+                    // Only notify when position is 1 (truly up next) and we haven't sent the notification yet
+                    if (currentPosition == 1 && _initialUpdateSent && !_almostUpNotificationSent)
                     {
-                        Color = Color.Gold,
-                        Title = "🎯 You're Up Next!",
-                        Description = $"Your trade will begin very soon. Please be ready!{batchInfo}",
-                        Footer = new EmbedFooterBuilder
-                        {
-                            Text = "Get ready to connect!"
-                        },
-                        Timestamp = DateTimeOffset.Now
-                    }.Build();
+                        // Send notification that they're up next - only sent ONCE
+                        _almostUpNotificationSent = true;
 
-                    await Trader.SendMessageAsync(embed: upNextEmbed).ConfigureAwait(false);
+                        var batchInfo = TotalBatchTrades > 1 ? $"\n\n**Important:** This is a batch trade with {TotalBatchTrades} Pokémon. Please stay in the trade until all are completed!" : "";
+
+                        var upNextEmbed = new EmbedBuilder
+                        {
+                            Color = Color.Gold,
+                            Title = "🎯 You're Up Next!",
+                            Description = $"Your trade will begin very soon. Please be ready!{batchInfo}",
+                            Footer = new EmbedFooterBuilder
+                            {
+                                Text = "Get ready to connect!"
+                            },
+                            Timestamp = DateTimeOffset.Now
+                        }.Build();
+
+                        await Trader.SendMessageAsync(embed: upNextEmbed).ConfigureAwait(false);
+                    }
+                    // No other periodic updates - this prevents Discord spam
                 }
-                // No other periodic updates - this prevents Discord spam
+            }
+            catch
+            {
+                // Swallow — async void timer callbacks must not let exceptions escape
             }
         },
         null,
