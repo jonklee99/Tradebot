@@ -107,15 +107,29 @@ public static class ReusableActions
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(2000).ConfigureAwait(false);
-            await userMessage.DeleteAsync().ConfigureAwait(false);
+            try
+            {
+                if (userMessage.Channel is IDMChannel)
+                    return;
+                await Task.Delay(2000).ConfigureAwait(false);
+                await userMessage.DeleteAsync().ConfigureAwait(false);
+            }
+            catch (HttpException) { }
+            catch (Exception ex) { LogUtil.LogSafe(ex, nameof(ReusableActions)); }
         });
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(20000).ConfigureAwait(false);
-            await botMessage.DeleteAsync().ConfigureAwait(false);
-            await warningMessage.DeleteAsync().ConfigureAwait(false);
+            try
+            {
+                if (botMessage.Channel is IDMChannel)
+                    return;
+                await Task.Delay(20000).ConfigureAwait(false);
+                await botMessage.DeleteAsync().ConfigureAwait(false);
+                await warningMessage.DeleteAsync().ConfigureAwait(false);
+            }
+            catch (HttpException) { }
+            catch (Exception ex) { LogUtil.LogSafe(ex, nameof(ReusableActions)); }
         });
     }
 
