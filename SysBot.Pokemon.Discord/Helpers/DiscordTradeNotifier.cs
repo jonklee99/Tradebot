@@ -1,4 +1,5 @@
 using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using PKHeX.Core;
 using PKHeX.Core.AutoMod;
@@ -53,10 +54,28 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
 
     public Action<PokeRoutineExecutor<T>>? OnFinish { private get; set; }
 
-    private static void FireAndForget(Task task)
+    private static void FireAndForget(Func<Task> taskFactory, int maxRetries = 2)
+        => _ = FireAndForgetAsync(taskFactory, maxRetries);
+
+    private static async Task FireAndForgetAsync(Func<Task> taskFactory, int maxRetries)
     {
-        task.ContinueWith(t => LogUtil.LogError(t.Exception?.InnerException?.Message ?? t.Exception?.Message ?? "Unknown", "DiscordNotifier"),
-            TaskContinuationOptions.OnlyOnFaulted);
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                await taskFactory().ConfigureAwait(false);
+                return;
+            }
+            catch (HttpException ex) when ((int?)ex.DiscordCode == 40003 && attempt < maxRetries)
+            {
+                await Task.Delay(2_000 * (attempt + 1)).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogUtil.LogError(ex.Message, "DiscordNotifier");
+                return;
+            }
+        }
     }
 
     public void UpdateBatchProgress(int currentBatchNumber, T currentPokemon, int uniqueTradeID)
@@ -217,16 +236,16 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
                 message = $"Initializing trade{receive}. Please be ready.";
             }
 
-            FireAndForget(EmbedHelper.SendTradeInitializingEmbedAsync(Trader, speciesName, Code, IsMysteryEgg, message));
+            FireAndForget(() => EmbedHelper.SendTradeInitializingEmbedAsync(Trader, speciesName, Code, IsMysteryEgg, message));
         }
         else if (Data is PB7)
         {
             var (thefile, lgcodeembed) = CreateLGLinkCodeSpriteEmbed(LGCode);
-            FireAndForget(Trader.SendFileAsync(thefile, $"Initializing trade{receive}. Please be ready. Your code is", embed: lgcodeembed));
+            FireAndForget(() => Trader.SendFileAsync(thefile, $"Initializing trade{receive}. Please be ready. Your code is", embed: lgcodeembed));
         }
         else
         {
-            FireAndForget(EmbedHelper.SendTradeInitializingEmbedAsync(Trader, speciesName, Code, IsMysteryEgg));
+            FireAndForget(() => EmbedHelper.SendTradeInitializingEmbedAsync(Trader, speciesName, Code, IsMysteryEgg));
         }
     }
 
@@ -242,7 +261,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         {
             var batchInfo = TotalBatchTrades > 1 ? $" (Trade {BatchTradeNumber}/{TotalBatchTrades})" : "";
             var message = $"I'm waiting for you{trainer}{batchInfo}! My IGN is **{routine.InGameName}**.";
-            FireAndForget(Trader.SendMessageAsync(message));
+            FireAndForget(() => Trader.SendMessageAsync(message));
         }
         else
         {
@@ -260,7 +279,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
                 }
             }
 
-            FireAndForget(EmbedHelper.SendTradeSearchingEmbedAsync(Trader, trainer, routine.InGameName, additionalMessage));
+            FireAndForget(() => EmbedHelper.SendTradeSearchingEmbedAsync(Trader, trainer, routine.InGameName, additionalMessage));
         }
     }
 
@@ -273,7 +292,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
             ? $"Batch trade canceled: {msg}. All remaining trades have been canceled."
             : msg.ToString();
 
-        FireAndForget(EmbedHelper.SendTradeCanceledEmbedAsync(Trader, cancelMessage));
+        FireAndForget(() => EmbedHelper.SendTradeCanceledEmbedAsync(Trader, cancelMessage));
     }
 
     public void TradeFinished(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, T result)
@@ -310,13 +329,13 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
             message = tradedToUser != 0 ? $"Trade finished. Enjoy!" : "Trade finished!";
         }
 
-        FireAndForget(Trader.SendMessageAsync(message));
+        FireAndForget(() => Trader.SendMessageAsync(message));
 
         // For single trades only, return the Pokemon immediately
         // Batch trades will have their Pokemon returned separately via SendNotification
         if (result is not null && Hub.Config.Discord.ReturnPKMs && TotalBatchTrades <= 1)
         {
-            FireAndForget(Trader.SendPKMAsync(result, "Here's what you traded me!"));
+            FireAndForget(() => Trader.SendPKMAsync(result, "Here's what you traded me!"));
         }
     }
 
@@ -328,7 +347,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
             message = $"Trade {BatchTradeNumber}/{TotalBatchTrades}: {message}";
         }
 
-        FireAndForget(EmbedHelper.SendNotificationEmbedAsync(Trader, message));
+        FireAndForget(() => EmbedHelper.SendNotificationEmbedAsync(Trader, message));
     }
 
     public void SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, PokeTradeSummary message)
@@ -342,7 +361,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         var msg = message.Summary;
         if (message.Details.Count > 0)
             msg += ", " + string.Join(", ", message.Details.Select(z => $"{z.Heading}: {z.Detail}"));
-        FireAndForget(Trader.SendMessageAsync(msg));
+        FireAndForget(() => Trader.SendMessageAsync(msg));
     }
 
     public void SendNotification(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info, T result, string message)
@@ -350,7 +369,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         // Always send the Pokemon if requested, regardless of trade type
         if (result.Species != 0 && (Hub.Config.Discord.ReturnPKMs || info.Type == PokeTradeType.Dump))
         {
-            FireAndForget(Trader.SendPKMAsync(result, message));
+            FireAndForget(() => Trader.SendPKMAsync(result, message));
         }
     }
 
@@ -366,7 +385,7 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
             x.IsInline = false;
         });
         var msg = $"Here are the details for `{r.Seed:X16}`:";
-        FireAndForget(Trader.SendMessageAsync(msg, embed: embed.Build()));
+        FireAndForget(() => Trader.SendMessageAsync(msg, embed: embed.Build()));
     }
 
     public static (string, Embed) CreateLGLinkCodeSpriteEmbed(List<Pictocodes> lgcode)
