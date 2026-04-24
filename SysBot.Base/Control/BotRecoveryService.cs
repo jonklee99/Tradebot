@@ -204,10 +204,15 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
             return false;
         }
 
-        // Check if we've exceeded max attempts
+        // Check if we've exceeded max attempts — log once then mark intentionally stopped
+        // to prevent the monitor from re-evaluating (and spamming) every 5 seconds.
         if (state.ConsecutiveFailures >= _config.MaxRecoveryAttempts)
         {
-            LogUtil.LogError($"Bot {botName} has exceeded maximum recovery attempts ({_config.MaxRecoveryAttempts})", "Recovery");
+            if (!state.IsIntentionallyStopped)
+            {
+                LogUtil.LogError($"Bot {botName} has exceeded maximum recovery attempts ({_config.MaxRecoveryAttempts})", "Recovery");
+                state.IsIntentionallyStopped = true;
+            }
             return false;
         }
 
@@ -284,6 +289,11 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
                     bot.Start();
                     state.LastStartTime = DateTime.UtcNow;
                     state.IsIntentionallyStopped = false;
+
+                    // Reset the activity timestamp so the frozen-bot watchdog doesn't
+                    // immediately re-fire on the next monitor tick after a successful restart.
+                    var activityKey = LogUtil.ConnectionToTrainerMap.TryGetValue(botName, out var trainerKey) ? trainerKey : botName;
+                    LogUtil.BotLastActivity[activityKey] = DateTime.Now;
                 }
                 catch (Exception ex)
                 {

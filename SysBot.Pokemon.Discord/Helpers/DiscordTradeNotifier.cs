@@ -361,6 +361,8 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         var msg = message.Summary;
         if (message.Details.Count > 0)
             msg += ", " + string.Join(", ", message.Details.Select(z => $"{z.Heading}: {z.Detail}"));
+        if (msg.Length > 2000)
+            msg = msg[..1997] + "...";
         FireAndForget(() => Trader.SendMessageAsync(msg));
     }
 
