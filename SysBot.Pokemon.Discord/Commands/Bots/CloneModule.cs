@@ -1,5 +1,6 @@
 using Discord;
 using Discord.Commands;
+using Discord.Net;
 using PKHeX.Core;
 using System.Threading.Tasks;
 
@@ -16,7 +17,6 @@ public class CloneModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [RequireQueueRole(nameof(DiscordManager.RolesClone))]
     public async Task CloneAsync(int code)
     {
-        // Check if the user is already in the queue
         var userID = Context.User.Id;
         if (Info.IsUserInQueue(userID))
         {
@@ -27,21 +27,10 @@ public class CloneModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var sig = Context.User.GetFavor();
         var lgcode = Info.GetRandomLGTradeCode();
 
-        // Add to queue asynchronously
         _ = QueueHelper<T>.AddToQueueAsync(Context, code, Context.User.Username, sig, new T(), PokeRoutineType.Clone, PokeTradeType.Clone, Context.User, false, 1, 1, false, false, lgcode: lgcode);
 
-        // Immediately send a confirmation message without waiting
         var confirmationMessage = await ReplyAsync("Processing your clone request...").ConfigureAwait(false);
-
-        // Use a fire-and-forget approach for the delay and deletion
-        _ = Task.Delay(2000).ContinueWith(async _ =>
-        {
-            if (Context.Message is IUserMessage userMessage)
-                await userMessage.DeleteAsync().ConfigureAwait(false);
-
-            if (confirmationMessage != null)
-                await confirmationMessage.DeleteAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+        _ = DeleteMessagesAfterDelayAsync(Context.Message as IUserMessage, confirmationMessage, 2000);
     }
 
     [Command("clone")]
@@ -50,7 +39,6 @@ public class CloneModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     [RequireQueueRole(nameof(DiscordManager.RolesClone))]
     public async Task CloneAsync([Summary("Trade Code")][Remainder] string code)
     {
-        // Check if the user is already in the queue
         var userID = Context.User.Id;
         if (Info.IsUserInQueue(userID))
         {
@@ -62,21 +50,10 @@ public class CloneModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var sig = Context.User.GetFavor();
         var lgcode = Info.GetRandomLGTradeCode();
 
-        // Add to queue asynchronously
         _ = QueueHelper<T>.AddToQueueAsync(Context, tradeCode == 0 ? Info.GetRandomTradeCode(userID) : tradeCode, Context.User.Username, sig, new T(), PokeRoutineType.Clone, PokeTradeType.Clone, Context.User, false, 1, 1, false, false, lgcode: lgcode);
 
-        // Immediately send a confirmation message without waiting
         var confirmationMessage = await ReplyAsync("Processing your clone request...").ConfigureAwait(false);
-
-        // Use a fire-and-forget approach for the delay and deletion
-        _ = Task.Delay(2000).ContinueWith(async _ =>
-        {
-            if (Context.Message is IUserMessage userMessage)
-                await userMessage.DeleteAsync().ConfigureAwait(false);
-
-            if (confirmationMessage != null)
-                await confirmationMessage.DeleteAsync().ConfigureAwait(false);
-        }).ConfigureAwait(false);
+        _ = DeleteMessagesAfterDelayAsync(Context.Message as IUserMessage, confirmationMessage, 2000);
     }
 
     [Command("clone")]
@@ -105,5 +82,18 @@ public class CloneModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             x.IsInline = false;
         });
         await ReplyAsync("These are the users who are currently waiting:", embed: embed.Build()).ConfigureAwait(false);
+    }
+
+    private static async Task DeleteMessagesAfterDelayAsync(IUserMessage? userMessage, IUserMessage? botMessage, int delayMs)
+    {
+        await Task.Delay(delayMs).ConfigureAwait(false);
+        try
+        {
+            if (userMessage != null)
+                await userMessage.DeleteAsync().ConfigureAwait(false);
+            if (botMessage != null)
+                await botMessage.DeleteAsync().ConfigureAwait(false);
+        }
+        catch (HttpException) { }
     }
 }

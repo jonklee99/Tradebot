@@ -729,7 +729,14 @@ public static class QueueHelper<T> where T : PKM, new()
                 .WithThumbnailUrl(imageUrl)
                 .Build();
 
-            await channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+            try
+            {
+                await channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+            }
+            catch (HttpException ex)
+            {
+                Base.LogUtil.LogError(ex.Message, nameof(QueueHelper<T>));
+            }
         }
     }
 
