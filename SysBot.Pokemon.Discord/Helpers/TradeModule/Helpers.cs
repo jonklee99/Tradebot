@@ -186,6 +186,15 @@ public static class Helpers<T> where T : PKM, new()
             });
         }
 
+        // Re-apply the requested nature if ALM generated with a different one.
+        // TryParseAnyLanguage can fail to propagate the nature to the RegenTemplate
+        // when the set contains batch commands alongside standard Showdown fields.
+        if (!isEgg && (byte)template.Nature < 25 && pkm.Nature != template.Nature)
+        {
+            pkm.Nature = template.Nature;
+            pkm.StatNature = template.Nature;
+        }
+
         var spec = GameInfo.Strings.Species[template.Species];
 
         // Apply standard item logic only for non-eggs
