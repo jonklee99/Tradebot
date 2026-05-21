@@ -6,9 +6,6 @@
     <ProjectReference Include="..\SysBot.Base\SysBot.Base.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="deps\" />
-  </ItemGroup>
-  <ItemGroup>
     <Reference Include="PKHeX.Core">
       <HintPath>deps\PKHeX.Core.dll</HintPath>
     </Reference>
