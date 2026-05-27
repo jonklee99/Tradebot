@@ -47,7 +47,6 @@ namespace SysBot.Pokemon.Twitch
                 string result;
                 if (isEgg)
                 {
-                    // Use ALM's GenerateEgg method for eggs
                     pkm = sav.GenerateEgg(template, out var eggResult);
                     result = eggResult.ToString();
                     if (eggResult != LegalizationResult.Regenerated)
@@ -55,10 +54,18 @@ namespace SysBot.Pokemon.Twitch
                         msg = $"Skipping trade, @{username}: Failed to generate egg.";
                         return false;
                     }
+
+                    // ShowdownSet.Nature is not populated for egg-format sets ("Egg (Species)"),
+                    // so we parse the requested nature directly from the raw set string.
+                    var requestedNature = ParseNatureFromContent(setstring);
+                    if (requestedNature.HasValue)
+                    {
+                        pkm.Nature = requestedNature.Value;
+                        pkm.StatNature = requestedNature.Value;
+                    }
                 }
                 else
                 {
-                    // Use normal generation for non-eggs
                     pkm = sav.GetLegal(template, out result);
                 }
 
@@ -126,6 +133,20 @@ namespace SysBot.Pokemon.Twitch
                 QueueResultRemove.Removed => "Removed you from the queue.",
                 _ => "Sorry, you are not currently in the queue.",
             };
+        }
+
+        private static Nature? ParseNatureFromContent(string content)
+        {
+            foreach (var raw in content.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (!line.StartsWith("Nature:", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var natureName = line["Nature:".Length..].Trim();
+                if (Enum.TryParse<Nature>(natureName, ignoreCase: true, out var nature) && (byte)nature < 25)
+                    return nature;
+            }
+            return null;
         }
     }
 }

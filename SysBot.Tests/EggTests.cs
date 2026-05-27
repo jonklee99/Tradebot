@@ -185,4 +185,86 @@ Ball: Poke Ball");
         pk9.Nickname.Should().Be("Egg", "unhatched eggs should be nicknamed 'Egg' in English");
         pk9.IsNicknamed.Should().BeTrue("eggs should have the nickname flag set");
     }
+
+    [Fact]
+    public void EggNatureSetterShouldPersist()
+    {
+        // Diagnostic: can we set nature directly on a PB8 egg at all?
+        var sav = AutoLegalityWrapper.GetTrainerInfo<PB8>();
+        var set = new ShowdownSet("Egg (Piplup)\nAbility: Torrent\nBall: Poke Ball");
+        var template = AutoLegalityWrapper.GetTemplate(set);
+        var egg = sav.GenerateEgg(template, out var result);
+        result.Should().Be(LegalizationResult.Regenerated);
+        egg.Should().NotBeNull();
+
+        egg.Nature = Nature.Modest;
+        egg.StatNature = Nature.Modest;
+        egg.Nature.Should().Be(Nature.Modest, "nature setter must persist for the fix to work");
+    }
+
+    [Fact]
+    public void ShowdownSetNatureIsRandomForEggFormat()
+    {
+        // Documents the known PKHeX behaviour: ShowdownSet does not populate Nature
+        // for egg-format sets ("Egg (Species)"), so we cannot rely on template.Nature.
+        var set = new ShowdownSet("Egg (Piplup)\nNature: Modest\nAbility: Torrent\nBall: Poke Ball");
+        ((byte)set.Nature).Should().Be(25, "ShowdownSet does not parse Nature for egg-format sets — workaround parses raw content instead");
+    }
+
+    [Theory]
+    [InlineData("Turtwig", "Adamant", "PB8")]
+    [InlineData("Chimchar", "Jolly", "PB8")]
+    [InlineData("Piplup", "Modest", "PB8")]
+    [InlineData("Sprigatito", "Timid", "PK9")]
+    public void EggShouldHaveRequestedNature(string species, string nature, string format)
+    {
+        var natureEnum = Enum.Parse<Nature>(nature);
+        var rawContent = $"Egg ({species})\nNature: {nature}\nAbility: No Ability\nBall: Poke Ball";
+        PKM egg;
+
+        if (format == "PB8")
+        {
+            var sav = AutoLegalityWrapper.GetTrainerInfo<PB8>();
+            var set = new ShowdownSet(rawContent);
+            var template = AutoLegalityWrapper.GetTemplate(set);
+            egg = sav.GenerateEgg(template, out var result);
+            result.Should().Be(LegalizationResult.Regenerated);
+        }
+        else
+        {
+            var sav = AutoLegalityWrapper.GetTrainerInfo<PK9>();
+            var set = new ShowdownSet(rawContent);
+            var template = AutoLegalityWrapper.GetTemplate(set);
+            egg = sav.GenerateEgg(template, out var result);
+            result.Should().Be(LegalizationResult.Regenerated);
+        }
+
+        egg.Should().NotBeNull();
+        egg.IsEgg.Should().BeTrue();
+
+        // Mirror the fix in Helpers.cs: parse nature from raw content and apply directly.
+        var requestedNature = ParseNatureFromContent(rawContent);
+        requestedNature.Should().Be(natureEnum, "ParseNatureFromContent should find the nature in the raw set string");
+        egg.Nature = requestedNature!.Value;
+        egg.StatNature = requestedNature.Value;
+
+        egg.Nature.Should().Be(natureEnum, $"egg nature should match the requested {nature} nature after applying the fix");
+
+        var la = new LegalityAnalysis(egg);
+        la.Valid.Should().BeTrue($"egg with {nature} nature should be legal:\n{la.Report()}");
+    }
+
+    private static Nature? ParseNatureFromContent(string content)
+    {
+        foreach (var raw in content.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (!line.StartsWith("Nature:", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var natureName = line["Nature:".Length..].Trim();
+            if (Enum.TryParse<Nature>(natureName, ignoreCase: true, out var nature) && (byte)nature < 25)
+                return nature;
+        }
+        return null;
+    }
 }

@@ -167,13 +167,20 @@ public static class Helpers<T> where T : PKM, new()
         // Generate egg or normal pokemon based on isEgg flag
         if (isEgg)
         {
-            // Use ALM's GenerateEgg method for eggs
             pkm = sav.GenerateEgg(template, out var eggResult);
             result = eggResult.ToString();
+
+            // ShowdownSet.Nature is not populated for egg-format sets ("Egg (Species)"),
+            // so we parse the requested nature directly from the raw content string.
+            var requestedNature = ParseNatureFromContent(content);
+            if (requestedNature.HasValue)
+            {
+                pkm.Nature = requestedNature.Value;
+                pkm.StatNature = requestedNature.Value;
+            }
         }
         else
         {
-            // Use normal generation for non-eggs
             pkm = sav.GetLegal(template, out result);
         }
 
@@ -186,7 +193,7 @@ public static class Helpers<T> where T : PKM, new()
             });
         }
 
-        // Re-apply the requested nature if ALM generated with a different one.
+        // Re-apply the requested nature for non-eggs if ALM generated with a different one.
         // TryParseAnyLanguage can fail to propagate the nature to the RegenTemplate
         // when the set contains batch commands alongside standard Showdown fields.
         if (!isEgg && (byte)template.Nature < 25 && pkm.Nature != template.Nature)
@@ -484,5 +491,19 @@ public static class Helpers<T> where T : PKM, new()
         await QueueHelper<T>.AddToQueueAsync(context, code, trainerName, sig, pk!, PokeRoutineType.LinkTrade,
             tradeType, usr, isBatchTrade, batchTradeNumber, totalBatchTrades, isHiddenTrade, isMysteryEgg,
             lgcode: lgcode, ignoreAutoOT: ignoreAutoOT, setEdited: setEdited, isNonNative: isNonNative).ConfigureAwait(false);
+    }
+
+    private static Nature? ParseNatureFromContent(string content)
+    {
+        foreach (var raw in content.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (!line.StartsWith("Nature:", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var natureName = line["Nature:".Length..].Trim();
+            if (Enum.TryParse<Nature>(natureName, ignoreCase: true, out var nature) && (byte)nature < 25)
+                return nature;
+        }
+        return null;
     }
 }
