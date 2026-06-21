@@ -97,4 +97,6 @@ public class PokeTradeLogNotifier<T> : IPokeTradeNotifier<T> where T : PKM, new(
         var batchInfo = info.TotalBatchTrades > 1 ? $"[Trade {BatchTradeNumber}/{info.TotalBatchTrades}] " : "";
         LogUtil.LogInfo(routine.Connection.Label, $"{batchInfo}Searching for trade with {info.Trainer.TrainerName}, sending {GameInfo.GetStrings("en").Species[info.TradeData.Species]}");
     }
+
+    public void SendSystemNotification(string message) => LogUtil.LogInfo(nameof(PokeTradeLogNotifier<T>), message);
 }

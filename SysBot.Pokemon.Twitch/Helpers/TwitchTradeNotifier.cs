@@ -144,6 +144,12 @@ namespace SysBot.Pokemon.Twitch
             SendMessage($"@{info.Trainer.TrainerName} {message}", dest);
         }
 
+        public void SendSystemNotification(string message)
+        {
+            LogUtil.LogText(message);
+            SendMessage(message, Settings.NotifyDestination);
+        }
+
         private void SendMessage(string message, TwitchMessageDestination dest)
         {
             switch (dest)

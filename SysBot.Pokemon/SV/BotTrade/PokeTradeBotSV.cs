@@ -598,9 +598,9 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
         if (result.ShouldAttemptRetry() && detail.Type != PokeTradeType.Random && !detail.IsRetry)
         {
             detail.IsRetry = true;
-            Hub.Queues.Enqueue(type, detail, Math.Min(priority, PokeTradePriorities.Tier2));
-            Log($"Requeuing trade for {detail.Trainer.TrainerName} for retry (Priority: {priority})");
-            detail.SendNotification(this, "Oops! Something happened. I'll requeue you for another attempt.");
+            Hub.Queues.Enqueue(type, detail, priority);
+            Log($"Requeuing trade for {detail.Trainer.TrainerName} for retry (preserving original priority {priority})");
+            detail.SendNotification(this, "Oops! Something happened. Requeuing you for another attempt — your queue position is preserved.");
 
             // Add a small delay to prevent rapid-fire retries
             Task.Delay(2_000).Wait();
@@ -1562,8 +1562,8 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             if (result.ShouldAttemptRetry() && detail.Type != PokeTradeType.Random && !detail.IsRetry)
             {
                 detail.IsRetry = true;
-                Hub.Queues.Enqueue(type, detail, Math.Min(priority, PokeTradePriorities.Tier2));
-                detail.SendNotification(this, "Oops! Something happened during your batch trade. I'll requeue you for another attempt.");
+                Hub.Queues.Enqueue(type, detail, priority);
+                detail.SendNotification(this, "Oops! Something happened during your batch trade. Requeuing you for another attempt — your queue position is preserved.");
             }
             else
             {

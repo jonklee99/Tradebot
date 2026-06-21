@@ -35,4 +35,7 @@ public interface IPokeTradeNotifier<T> where T : PKM, new()
 
     /// <summary> Notifies when a trade bot is searching for the partner. </summary>
     void TradeSearching(PokeRoutineExecutor<T> routine, PokeTradeDetail<T> info);
+
+    /// <summary> Sends a system-level notification that does not require an active bot routine (e.g., queue removal, stuck-trade cleanup). </summary>
+    void SendSystemNotification(string message);
 }

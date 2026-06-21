@@ -439,6 +439,11 @@ public class DiscordTradeNotifier<T> : IPokeTradeNotifier<T>, IDisposable
         return (filename, returnembed);
     }
 
+    public void SendSystemNotification(string message)
+    {
+        FireAndForget(() => Trader.SendMessageAsync(message));
+    }
+
     public void Dispose()
     {
         StopPeriodicUpdates();

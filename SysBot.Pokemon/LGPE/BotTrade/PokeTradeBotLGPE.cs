@@ -224,8 +224,8 @@ public class PokeTradeBotLGPE(PokeTradeHub<PB7> Hub, PokeBotState Config) : Poke
         if (result.ShouldAttemptRetry() && detail.Type != PokeTradeType.Random && !detail.IsRetry)
         {
             detail.IsRetry = true;
-            Hub.Queues.Enqueue(type, detail, Math.Min(priority, PokeTradePriorities.Tier2));
-            detail.SendNotification(this, "Oops! Something happened. I'll requeue you for another attempt.");
+            Hub.Queues.Enqueue(type, detail, priority);
+            detail.SendNotification(this, "Oops! Something happened. Requeuing you for another attempt — your queue position is preserved.");
         }
         else
         {

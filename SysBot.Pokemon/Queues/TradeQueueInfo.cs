@@ -177,9 +177,10 @@ public sealed record TradeQueueInfo<T>(PokeTradeHub<T> Hub)
             foreach (var trade in stuckTrades)
             {
                 trade.Trade.IsProcessing = false;
+                trade.Trade.Notifier.SendSystemNotification(
+                    "Your trade was stuck and has been removed from the queue. Please requeue to try again.");
                 Remove(trade);
 
-                // Also release batch tracker if it's a batch trade
                 if (trade.Trade.TotalBatchTrades > 1)
                 {
                     var tracker = BatchTradeTracker<T>.Instance;
@@ -357,9 +358,11 @@ public sealed record TradeQueueInfo<T>(PokeTradeHub<T> Hub)
             if (Hub.Config.Legality.ResetHOMETracker && trade.Trade.TradeData is IHomeTrack t)
                 t.Tracker = 0;
 
-            // Sudo users get Tier1 (highest priority)
-            // Both favored and regular users get TierFree - favoritism is handled by queue positioning logic
-            var priority = sudo ? PokeTradePriorities.Tier1 : PokeTradePriorities.TierFree;
+            // Sudo:    key = trade ID (0–49,999)  → always before regular users
+            // Regular: key = UserBase + trade ID (100,000–149,999) → strict FIFO by trade ID
+            var priority = sudo
+                ? (uint)trade.Trade.ID
+                : PokeTradePriorities.UserBase + (uint)trade.Trade.ID;
 
             var queue = Hub.Queues.GetQueue(trade.Type);
 

@@ -214,7 +214,7 @@ public class QueueTests
         sr.Should().Be(QueueResultAdd.Added);
 
         var dequeue = queue.TryDequeue(out var first, out uint priority);
-        priority.Should().Be(PokeTradePriorities.Tier1); // sudo
+        priority.Should().BeLessThan(PokeTradePriorities.UserBase); // sudo: ID-based key < UserBase
         dequeue.Should().BeTrue();
         ReferenceEquals(first, s.Trade).Should().BeTrue();
 
@@ -228,7 +228,7 @@ public class QueueTests
         queue.Count.Should().Be(3);
 
         dequeue = queue.TryDequeue(out var second, out priority);
-        priority.Should().Be(PokeTradePriorities.TierFree); // sudo
+        priority.Should().BeGreaterThanOrEqualTo(PokeTradePriorities.UserBase); // regular: ID-based key >= UserBase
         dequeue.Should().BeTrue();
         ReferenceEquals(second, t1.Trade).Should().BeTrue();
 
