@@ -53,11 +53,16 @@ public class RecoveryModule<T> : ModuleBase<SocketCommandContext> where T : PKM,
                 var status = bot.IsRunning ? "🟢 Running" : "🔴 Stopped";
                 if (state.IsRecovering)
                     status = "🟠 Recovering";
+                if (state.RecoveryDisabled)
+                    status = "⛔ Recovery Disabled";
 
                 var fieldValue = $"Status: {status}\n" +
                                 $"Crashes: {state.CrashHistory.Count}\n" +
                                 $"Failed Attempts: {state.ConsecutiveFailures}";
-                
+
+                if (state.RecoveryDisabled)
+                    fieldValue += "\nUse `recoveryReset` to re-arm.";
+
                 if (state.LastRecoveryAttempt.HasValue)
                 {
                     fieldValue += $"\nLast Recovery: {state.LastRecoveryAttempt.Value:HH:mm:ss}";

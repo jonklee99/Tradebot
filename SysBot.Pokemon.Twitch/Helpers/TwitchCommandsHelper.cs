@@ -61,7 +61,7 @@ namespace SysBot.Pokemon.Twitch
                     if (requestedNature.HasValue)
                     {
                         pkm.Nature = requestedNature.Value;
-                        pkm.StatNature = requestedNature.Value;
+                        pkm.StatAlignment = requestedNature.Value;
                     }
                 }
                 else

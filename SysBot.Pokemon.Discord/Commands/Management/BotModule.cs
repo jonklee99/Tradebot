@@ -94,6 +94,7 @@ namespace SysBot.Pokemon.Discord
             }
 
             bot.Stop();
+            SysCord<T>.Runner.GetRecoveryService()?.MarkIntentionallyStopped(bot.Bot.Connection.Name);
             await ReplyAsync("Bot has been stopped.").ConfigureAwait(false);
             await Context.Message.DeleteAsync();
         }

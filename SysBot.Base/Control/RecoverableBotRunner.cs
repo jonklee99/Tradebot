@@ -99,8 +99,20 @@ public class RecoverableBotRunner<T> : BotRunner<T> where T : class, IConsoleBot
                 _recoveryService?.MarkIntentionallyStopped(recoverableBot.Bot.Connection.Name);
             }
         }
-        
+
         base.StopAll();
+    }
+
+    public override bool Remove(IConsoleBotConfig cfg, bool callStop)
+    {
+        // Mark as intentionally stopped before stopping so the recovery monitor
+        // doesn't mistake this removal for a crash and try to restart it.
+        if (callStop && GetBot(cfg) is RecoverableBotSource<T> recoverableBot)
+        {
+            _recoveryService?.MarkIntentionallyStopped(recoverableBot.Bot.Connection.Name);
+        }
+
+        return base.Remove(cfg, callStop);
     }
 
     /// <summary>

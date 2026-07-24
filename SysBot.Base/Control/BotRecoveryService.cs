@@ -216,14 +216,20 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
             return false;
         }
 
+        // If recovery was already disabled due to a crash loop, stay quiet — don't
+        // re-log or re-evaluate every monitor tick.
+        if (state.RecoveryDisabled)
+            return false;
+
         // Clean up old crash history
-        state.RemoveOldCrashes(crash => 
+        state.RemoveOldCrashes(crash =>
             (DateTime.UtcNow - crash).TotalMinutes > _config.CrashHistoryWindowMinutes);
 
         // Check crash frequency
         if (state.CrashHistory.Count >= _config.MaxCrashesInWindow)
         {
             LogUtil.LogError($"Bot {botName} has crashed {state.CrashHistory.Count} times in the last {_config.CrashHistoryWindowMinutes} minutes. Disabling recovery.", "Recovery");
+            state.RecoveryDisabled = true;
             return false;
         }
 
@@ -385,6 +391,7 @@ public sealed class BotRecoveryService<T> : IDisposable where T : class, IConsol
             state.ClearCrashHistory();
             state.LastRecoveryAttempt = null;
             state.IsRecovering = false;
+            state.RecoveryDisabled = false;
         }
     }
     
@@ -417,7 +424,7 @@ public class RecoveryConfiguration
     public int InitialRecoveryDelaySeconds { get; set; } = 5;
     public int MaxRecoveryDelaySeconds { get; set; } = 300;
     public double BackoffMultiplier { get; set; } = 2.0;
-    public int CrashHistoryWindowMinutes { get; set; } = 60;
+    public int CrashHistoryWindowMinutes { get; set; } = 30;
     public int MaxCrashesInWindow { get; set; } = 5;
     public bool RecoverIntentionalStops { get; set; } = false;
     public int MinimumStableUptimeSeconds { get; set; } = 600;
@@ -450,6 +457,13 @@ public class BotRecoveryState
     public DateTime? LastRecoveryAttempt { get; set; }
     public DateTime LastStartTime { get; set; }
     public bool IsIntentionallyStopped { get; set; }
+
+    /// <summary>
+    /// Set once a bot exceeds the crash-frequency threshold within the history window.
+    /// While true, the monitor skips this bot entirely instead of re-evaluating and
+    /// re-logging every tick. Cleared by <see cref="BotRecoveryService{T}.ResetRecoveryState"/>.
+    /// </summary>
+    public bool RecoveryDisabled { get; set; }
     
     public bool IsRecovering 
     { 

@@ -25,7 +25,7 @@ public class RecoverySettings
     public double BackoffMultiplier { get; set; } = 2.0;
 
     [Category(Recovery), Description("Time window in minutes to track crash history. Crashes outside this window are not counted.")]
-    public int CrashHistoryWindowMinutes { get; set; } = 60; // 1 hour
+    public int CrashHistoryWindowMinutes { get; set; } = 30;
 
     [Category(Recovery), Description("Maximum number of crashes allowed within the history window before permanent shutdown.")]
     public int MaxCrashesInWindow { get; set; } = 5;

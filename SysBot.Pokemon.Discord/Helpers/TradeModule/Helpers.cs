@@ -176,7 +176,7 @@ public static class Helpers<T> where T : PKM, new()
             if (requestedNature.HasValue)
             {
                 pkm.Nature = requestedNature.Value;
-                pkm.StatNature = requestedNature.Value;
+                pkm.StatAlignment = requestedNature.Value;
             }
         }
         else
@@ -199,7 +199,7 @@ public static class Helpers<T> where T : PKM, new()
         if (!isEgg && (byte)template.Nature < 25 && pkm.Nature != template.Nature)
         {
             pkm.Nature = template.Nature;
-            pkm.StatNature = template.Nature;
+            pkm.StatAlignment = template.Nature;
         }
 
         var spec = GameInfo.Strings.Species[template.Species];

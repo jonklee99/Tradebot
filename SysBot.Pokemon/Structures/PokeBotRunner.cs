@@ -34,6 +34,8 @@ public interface IPokeBotRunner
 
     bool SupportsRoutine(PokeRoutineType pokeRoutineType);
 
+    BotRecoveryService<PokeBotState>? GetRecoveryService();
+
     event EventHandler BotStopped;
 }
 

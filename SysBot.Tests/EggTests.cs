@@ -198,7 +198,7 @@ Ball: Poke Ball");
         egg.Should().NotBeNull();
 
         egg.Nature = Nature.Modest;
-        egg.StatNature = Nature.Modest;
+        egg.StatAlignment = Nature.Modest;
         egg.Nature.Should().Be(Nature.Modest, "nature setter must persist for the fix to work");
     }
 
@@ -246,7 +246,7 @@ Ball: Poke Ball");
         var requestedNature = ParseNatureFromContent(rawContent);
         requestedNature.Should().Be(natureEnum, "ParseNatureFromContent should find the nature in the raw set string");
         egg.Nature = requestedNature!.Value;
-        egg.StatNature = requestedNature.Value;
+        egg.StatAlignment = requestedNature.Value;
 
         egg.Nature.Should().Be(natureEnum, $"egg nature should match the requested {nature} nature after applying the fix");
 

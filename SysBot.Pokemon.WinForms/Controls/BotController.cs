@@ -158,8 +158,14 @@ public partial class BotController : UserControl
             case BotControlCommand.Start:
                 Runner.InitializeStart();
                 bot.Start(); break;
-            case BotControlCommand.Stop: bot.Stop(); break;
-            case BotControlCommand.RebootAndStop: bot.RebootAndStop(); break;
+            case BotControlCommand.Stop:
+                bot.Stop();
+                Runner.GetRecoveryService()?.MarkIntentionallyStopped(bot.Bot.Connection.Name);
+                break;
+            case BotControlCommand.RebootAndStop:
+                bot.RebootAndStop();
+                Runner.GetRecoveryService()?.MarkIntentionallyStopped(bot.Bot.Connection.Name);
+                break;
             case BotControlCommand.Resume: bot.Resume(); break;
             case BotControlCommand.Restart:
                 {
@@ -181,7 +187,10 @@ public partial class BotController : UserControl
     {
         var bot = GetBot();
         if (!Runner!.Config.SkipConsoleBotCreation)
+        {
             bot.Stop();
+            Runner.GetRecoveryService()?.MarkIntentionallyStopped(bot.Bot.Connection.Name);
+        }
         Remove?.Invoke(this, EventArgs.Empty);
     }
 
