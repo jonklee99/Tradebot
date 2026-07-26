@@ -816,9 +816,7 @@ public class PokeTradeBotSWSH(PokeTradeHub<PK8> hub, PokeBotState config) : Poke
         if (poke.Type == PokeTradeType.Seed && itemReq == SpecialTradeType.None)
         {
             // Immediately exit, we aren't trading anything.
-            poke.SendNotification(this, "No held item or valid request! Cancelling this trade.");
-            await ExitTrade(false, token).ConfigureAwait(false);
-            return PokeTradeResult.TrainerRequestBad;
+            return await EndSeedCheckTradeAsync(poke, offered, token).ConfigureAwait(false);
         }
 
         var trainer = new PartnerDataHolder(trainerNID, trainerName, trainerTID);
