@@ -2,6 +2,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using PKHeX.Core;
+using SysBot.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -258,6 +259,82 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         await ReplyAsync(success
             ? $"Cleared trade profile for user ID {userId}."
             : $"No trade profile found for user ID {userId}.").ConfigureAwait(false);
+    }
+
+    [Command("clear")]
+    [Summary("Deletes the bot's own messages in this channel. Optionally specify how many to delete (default: all).")]
+    [RequireSudo]
+    public async Task ClearBotMessagesAsync([Summary("Number of bot messages to delete")] int count = int.MaxValue)
+    {
+        try
+        {
+            await Context.Message.DeleteAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogUtil.LogError($"Failed to delete clear command message in #{Context.Channel.Name} ({Context.Guild?.Name ?? "DM"}): {ex.Message}", nameof(SudoModule<T>));
+        }
+
+        if (count <= 0)
+        {
+            await ReplyAsync("Please specify a number greater than 0.").ConfigureAwait(false);
+            return;
+        }
+
+        var botId = Context.Client.CurrentUser.Id;
+        var toDelete = new List<IMessage>();
+        var before = Context.Message.Id;
+
+        // Page backwards through the channel history, collecting the bot's messages (newest first).
+        while (toDelete.Count < count)
+        {
+            var batch = (await Context.Channel.GetMessagesAsync(before, Direction.Before, 100).FlattenAsync().ConfigureAwait(false)).ToList();
+            if (batch.Count == 0)
+                break;
+
+            toDelete.AddRange(batch
+                .Where(m => m.Author.Id == botId)
+                .OrderByDescending(m => m.Id)
+                .Take(count - toDelete.Count));
+            before = batch.Min(m => m.Id);
+        }
+
+        if (toDelete.Count == 0)
+        {
+            await ReplyAsync("No bot messages found to clear.").ConfigureAwait(false);
+            return;
+        }
+
+        // Bulk delete only works for messages younger than 14 days and requires Manage Messages.
+        var bulkCutoff = DateTimeOffset.UtcNow.AddDays(-14).AddMinutes(5);
+        var canBulk = Context.Channel is ITextChannel textChannel
+            && Context.Guild?.CurrentUser.GetPermissions(textChannel).ManageMessages == true;
+        var bulk = canBulk ? toDelete.Where(m => m.CreatedAt > bulkCutoff).ToList() : [];
+        var single = toDelete.Except(bulk).ToList();
+
+        int deleted = 0;
+        if (bulk.Count > 0)
+        {
+            await ((ITextChannel)Context.Channel).DeleteMessagesAsync(bulk).ConfigureAwait(false);
+            deleted += bulk.Count;
+        }
+
+        foreach (var msg in single)
+        {
+            try
+            {
+                await msg.DeleteAsync().ConfigureAwait(false);
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                LogUtil.LogError($"Failed to delete message {msg.Id}: {ex.Message}", nameof(SudoModule<T>));
+            }
+        }
+
+        var confirmation = await ReplyAsync($"Cleared {deleted} bot message(s).").ConfigureAwait(false);
+        await Task.Delay(5_000).ConfigureAwait(false);
+        await confirmation.DeleteAsync().ConfigureAwait(false);
     }
 
     protected static IEnumerable<ulong> GetIDs(string content)
