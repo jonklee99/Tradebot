@@ -121,6 +121,30 @@ public static class Helpers<T> where T : PKM, new()
         }
     }
 
+    // Channels/categories can have Send Messages or Embed Links revoked for the bot's role
+    // without it leaving the trade queue. Without this, a 403/50013 here bubbles up as an
+    // unhandled CommandException and an UnobservedTaskException instead of just being logged.
+    private static async Task<IUserMessage?> TrySendMessageAsync(SocketCommandContext context, string message)
+    {
+        try
+        {
+            return await context.Channel.SendMessageAsync(message).ConfigureAwait(false);
+        }
+        catch (HttpException ex)
+        {
+            LogUtil.LogError($"Failed to send message. {GetLocationInfo(context)} Error: {ex.Message}", nameof(Helpers<T>));
+            LogUtil.LogSafe(ex, nameof(Helpers<T>));
+            return null;
+        }
+    }
+
+    private static string GetLocationInfo(SocketCommandContext context)
+    {
+        return context.Guild != null
+            ? $"Server: {context.Guild.Name} ({context.Guild.Id}), Channel: #{context.Channel.Name} ({context.Channel.Id})"
+            : $"DM Channel: {context.Channel.Name} ({context.Channel.Id})";
+    }
+
     public static Task<ProcessedPokemonResult<T>> ProcessShowdownSetAsync(string content, bool ignoreAutoOT = false)
     {
         content = ReusableActions.StripCodeBlock(content);
@@ -337,6 +361,7 @@ public static class Helpers<T> where T : PKM, new()
         }
         catch (HttpException ex)
         {
+            LogUtil.LogError($"Failed to send trade error embed. {GetLocationInfo(context)} Error: {ex.Message}", nameof(Helpers<T>));
             LogUtil.LogSafe(ex, nameof(Helpers<T>));
         }
     }
@@ -373,7 +398,7 @@ public static class Helpers<T> where T : PKM, new()
         var attachment = context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
         {
-            _ = await context.Channel.SendMessageAsync("No attachment provided!").ConfigureAwait(false);
+            _ = await TrySendMessageAsync(context, "No attachment provided!").ConfigureAwait(false);
             return null;
         }
 
@@ -382,7 +407,7 @@ public static class Helpers<T> where T : PKM, new()
 
         if (pk == null)
         {
-            _ = await context.Channel.SendMessageAsync("Attachment provided is not compatible with this module!").ConfigureAwait(false);
+            _ = await TrySendMessageAsync(context, "Attachment provided is not compatible with this module!").ConfigureAwait(false);
             return null;
         }
 
@@ -421,9 +446,12 @@ public static class Helpers<T> where T : PKM, new()
 
         if (pk is not null && !pk.CanBeTraded())
         {
-            var reply = await context.Channel.SendMessageAsync("Provided Pokémon content is blocked from trading!").ConfigureAwait(false);
-            await Task.Delay(6000).ConfigureAwait(false);
-            await reply.DeleteAsync().ConfigureAwait(false);
+            var reply = await TrySendMessageAsync(context, "Provided Pokémon content is blocked from trading!").ConfigureAwait(false);
+            if (reply != null)
+            {
+                await Task.Delay(6000).ConfigureAwait(false);
+                await TryDeleteMessageAsync(reply).ConfigureAwait(false);
+            }
             return;
         }
 
@@ -431,9 +459,12 @@ public static class Helpers<T> where T : PKM, new()
         if (pk is not null && TradeExtensions<T>.IsItemBlocked(pk))
         {
             var itemName = pk.HeldItem > 0 ? GameInfo.GetStrings("en").Item[pk.HeldItem] : "(none)";
-            var reply = await context.Channel.SendMessageAsync($"Trade blocked: The held item '{itemName}' cannot be traded.").ConfigureAwait(false);
-            await Task.Delay(6000).ConfigureAwait(false);
-            await reply.DeleteAsync().ConfigureAwait(false);
+            var reply = await TrySendMessageAsync(context, $"Trade blocked: The held item '{itemName}' cannot be traded.").ConfigureAwait(false);
+            if (reply != null)
+            {
+                await Task.Delay(6000).ConfigureAwait(false);
+                await TryDeleteMessageAsync(reply).ConfigureAwait(false);
+            }
             return;
         }
 
@@ -452,23 +483,26 @@ public static class Helpers<T> where T : PKM, new()
                 string speciesName = SpeciesName.GetSpeciesName(pk!.Species, (int)LanguageID.English);
                 responseMessage = $"{speciesName} attachment is not legal, and cannot be traded!\n\nLegality Report:\n```\n{la.Report()}\n```";
             }
-            var reply = await context.Channel.SendMessageAsync(responseMessage).ConfigureAwait(false);
-            await Task.Delay(6000);
-            await reply.DeleteAsync().ConfigureAwait(false);
+            var reply = await TrySendMessageAsync(context, responseMessage).ConfigureAwait(false);
+            if (reply != null)
+            {
+                await Task.Delay(6000);
+                await TryDeleteMessageAsync(reply).ConfigureAwait(false);
+            }
             return;
         }
 
         if (Info.Hub.Config.Legality.DisallowNonNatives && isNonNative)
         {
             string speciesName = SpeciesName.GetSpeciesName(pk!.Species, (int)LanguageID.English);
-            _ = await context.Channel.SendMessageAsync($"This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.").ConfigureAwait(false);
+            _ = await TrySendMessageAsync(context, $"This **{speciesName}** is not native to this game, and cannot be traded! Trade with the correct bot, then trade to HOME.").ConfigureAwait(false);
             return;
         }
 
         if (Info.Hub.Config.Legality.DisallowTracked && pk is IHomeTrack { HasTracker: true })
         {
             string speciesName = SpeciesName.GetSpeciesName(pk.Species, (int)LanguageID.English);
-            _ = await context.Channel.SendMessageAsync($"This {speciesName} file is tracked by HOME, and cannot be traded!").ConfigureAwait(false);
+            _ = await TrySendMessageAsync(context, $"This {speciesName} file is tracked by HOME, and cannot be traded!").ConfigureAwait(false);
             return;
         }
 
