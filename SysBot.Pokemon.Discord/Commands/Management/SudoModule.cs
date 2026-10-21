@@ -262,9 +262,110 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
     }
 
     [Command("clear")]
-    [Summary("Deletes the bot's own messages in this channel. Optionally specify how many to delete (default: all).")]
+    [Summary("Deletes the bot's own messages in every channel the bot can talk in, across all servers.")]
     [RequireSudo]
-    public async Task ClearBotMessagesAsync([Summary("Number of bot messages to delete")] int count = int.MaxValue)
+    public async Task ClearBotMessagesAsync()
+    {
+        await DeleteCommandMessageAsync().ConfigureAwait(false);
+
+        // Only channels where the bot can see, read history, and send messages.
+        var targets = Context.Client.Guilds
+            .SelectMany(g => g.TextChannels.Select(c => (Channel: c, Perms: g.CurrentUser.GetPermissions(c))))
+            .Where(x => x.Perms.ViewChannel && x.Perms.SendMessages && x.Perms.ReadMessageHistory)
+            .Select(x => x.Channel)
+            .ToList();
+
+        int deleted = 0;
+        foreach (var channel in targets)
+            deleted += await ClearChannelAsync(channel, int.MaxValue).ConfigureAwait(false);
+
+        await ReplyAndDeleteAsync($"Cleared {deleted} bot message(s) across {targets.Count} channel(s) in {Context.Client.Guilds.Count} server(s).").ConfigureAwait(false);
+    }
+
+    [Command("clear")]
+    [Summary("Deletes the bot's own messages in the specified channel (any server the bot is in). Optionally specify how many to delete (default: all).")]
+    [RequireSudo]
+    public async Task ClearBotMessagesAsync([Summary("Channel ID to clear")] ulong channelId, [Summary("Number of bot messages to delete")] int count = int.MaxValue)
+    {
+        await DeleteCommandMessageAsync().ConfigureAwait(false);
+
+        // Snowflake IDs are far larger than int.MaxValue, so a small number is the old "clear <count>" usage for this channel.
+        if (channelId <= int.MaxValue)
+        {
+            count = (int)channelId;
+            channelId = Context.Channel.Id;
+        }
+
+        if (count <= 0)
+        {
+            await ReplyAsync("Please specify a number greater than 0.").ConfigureAwait(false);
+            return;
+        }
+
+        if (Context.Client.GetChannel(channelId) is not IMessageChannel channel)
+        {
+            await ReplyAndDeleteAsync($"Could not find a text channel with ID {channelId} that the bot can access.").ConfigureAwait(false);
+            return;
+        }
+
+        var deleted = await ClearChannelAsync(channel, count).ConfigureAwait(false);
+        var where = channel.Id == Context.Channel.Id ? "" : $" in #{channel.Name}";
+        await ReplyAndDeleteAsync(deleted == 0 ? $"No bot messages found to clear{where}." : $"Cleared {deleted} bot message(s){where}.").ConfigureAwait(false);
+    }
+
+    [Command("clearUser")]
+    [Summary("Deletes a user's messages in every channel the bot can talk in (and manage messages in), or only in the specified channel. Optionally specify how many to delete per channel (default: all).")]
+    [RequireSudo]
+    public async Task ClearUserMessagesAsync([Summary("User mention or ID")] string user, [Summary("Channel ID to clear (optional)")] ulong channelId = 0, [Summary("Number of messages to delete")] int count = int.MaxValue)
+    {
+        await DeleteCommandMessageAsync().ConfigureAwait(false);
+
+        if (!MentionUtils.TryParseUser(user, out var userId) && !ulong.TryParse(user, out userId))
+        {
+            await ReplyAndDeleteAsync("Please mention a user or provide their user ID.").ConfigureAwait(false);
+            return;
+        }
+
+        if (count <= 0)
+        {
+            await ReplyAndDeleteAsync("Please specify a number greater than 0.").ConfigureAwait(false);
+            return;
+        }
+
+        // Deleting someone else's messages requires Manage Messages.
+        static bool CanClear(ChannelPermissions p) => p.ViewChannel && p.SendMessages && p.ReadMessageHistory && p.ManageMessages;
+
+        List<SocketTextChannel> targets;
+        if (channelId == 0)
+        {
+            targets = Context.Client.Guilds
+                .SelectMany(g => g.TextChannels.Where(c => CanClear(g.CurrentUser.GetPermissions(c))))
+                .ToList();
+        }
+        else if (Context.Client.GetChannel(channelId) is SocketTextChannel channel)
+        {
+            if (!CanClear(channel.Guild.CurrentUser.GetPermissions(channel)))
+            {
+                await ReplyAndDeleteAsync($"The bot needs Manage Messages and Read Message History in #{channel.Name} to clear another user's messages.").ConfigureAwait(false);
+                return;
+            }
+            targets = [channel];
+        }
+        else
+        {
+            await ReplyAndDeleteAsync($"Could not find a text channel with ID {channelId} that the bot can access.").ConfigureAwait(false);
+            return;
+        }
+
+        int deleted = 0;
+        foreach (var channel in targets)
+            deleted += await ClearChannelAsync(channel, count, userId).ConfigureAwait(false);
+
+        var where = targets.Count == 1 ? $"#{targets[0].Name}" : $"{targets.Count} channel(s)";
+        await ReplyAndDeleteAsync($"Cleared {deleted} message(s) from <@{userId}> across {where}.").ConfigureAwait(false);
+    }
+
+    private async Task DeleteCommandMessageAsync()
     {
         try
         {
@@ -274,49 +375,69 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
         {
             LogUtil.LogError($"Failed to delete clear command message in #{Context.Channel.Name} ({Context.Guild?.Name ?? "DM"}): {ex.Message}", nameof(SudoModule<T>));
         }
+    }
 
-        if (count <= 0)
-        {
-            await ReplyAsync("Please specify a number greater than 0.").ConfigureAwait(false);
-            return;
-        }
+    private async Task ReplyAndDeleteAsync(string message)
+    {
+        var confirmation = await ReplyAsync(message).ConfigureAwait(false);
+        await Task.Delay(5_000).ConfigureAwait(false);
+        await confirmation.DeleteAsync().ConfigureAwait(false);
+    }
 
-        var botId = Context.Client.CurrentUser.Id;
+    private async Task<int> ClearChannelAsync(IMessageChannel channel, int count, ulong? authorId = null)
+    {
+        var targetId = authorId ?? Context.Client.CurrentUser.Id;
         var toDelete = new List<IMessage>();
-        var before = Context.Message.Id;
+        var guildName = (channel as IGuildChannel)?.Guild.Name ?? "DM";
 
-        // Page backwards through the channel history, collecting the bot's messages (newest first).
-        while (toDelete.Count < count)
+        try
         {
-            var batch = (await Context.Channel.GetMessagesAsync(before, Direction.Before, 100).FlattenAsync().ConfigureAwait(false)).ToList();
-            if (batch.Count == 0)
-                break;
+            // Page backwards through the channel history, collecting the target's messages (newest first).
+            ulong? before = null;
+            while (toDelete.Count < count)
+            {
+                var page = before is { } b
+                    ? channel.GetMessagesAsync(b, Direction.Before, 100)
+                    : channel.GetMessagesAsync(100);
+                var batch = (await page.FlattenAsync().ConfigureAwait(false)).ToList();
+                if (batch.Count == 0)
+                    break;
 
-            toDelete.AddRange(batch
-                .Where(m => m.Author.Id == botId)
-                .OrderByDescending(m => m.Id)
-                .Take(count - toDelete.Count));
-            before = batch.Min(m => m.Id);
+                toDelete.AddRange(batch
+                    .Where(m => m.Author.Id == targetId)
+                    .OrderByDescending(m => m.Id)
+                    .Take(count - toDelete.Count));
+                before = batch.Min(m => m.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            LogUtil.LogError($"Failed to read message history in #{channel.Name} ({guildName}): {ex.Message}", nameof(SudoModule<T>));
         }
 
         if (toDelete.Count == 0)
-        {
-            await ReplyAsync("No bot messages found to clear.").ConfigureAwait(false);
-            return;
-        }
+            return 0;
 
         // Bulk delete only works for messages younger than 14 days and requires Manage Messages.
         var bulkCutoff = DateTimeOffset.UtcNow.AddDays(-14).AddMinutes(5);
-        var canBulk = Context.Channel is ITextChannel textChannel
-            && Context.Guild?.CurrentUser.GetPermissions(textChannel).ManageMessages == true;
+        var canBulk = channel is SocketTextChannel textChannel
+            && textChannel.Guild.CurrentUser.GetPermissions(textChannel).ManageMessages;
         var bulk = canBulk ? toDelete.Where(m => m.CreatedAt > bulkCutoff).ToList() : [];
         var single = toDelete.Except(bulk).ToList();
 
         int deleted = 0;
         if (bulk.Count > 0)
         {
-            await ((ITextChannel)Context.Channel).DeleteMessagesAsync(bulk).ConfigureAwait(false);
-            deleted += bulk.Count;
+            try
+            {
+                await ((ITextChannel)channel).DeleteMessagesAsync(bulk).ConfigureAwait(false);
+                deleted += bulk.Count;
+            }
+            catch (Exception ex)
+            {
+                LogUtil.LogError($"Failed to bulk delete in #{channel.Name} ({guildName}): {ex.Message}", nameof(SudoModule<T>));
+                single.AddRange(bulk);
+            }
         }
 
         foreach (var msg in single)
@@ -328,13 +449,11 @@ public class SudoModule<T> : ModuleBase<SocketCommandContext> where T : PKM, new
             }
             catch (Exception ex)
             {
-                LogUtil.LogError($"Failed to delete message {msg.Id}: {ex.Message}", nameof(SudoModule<T>));
+                LogUtil.LogError($"Failed to delete message {msg.Id} in #{channel.Name} ({guildName}): {ex.Message}", nameof(SudoModule<T>));
             }
         }
 
-        var confirmation = await ReplyAsync($"Cleared {deleted} bot message(s).").ConfigureAwait(false);
-        await Task.Delay(5_000).ConfigureAwait(false);
-        await confirmation.DeleteAsync().ConfigureAwait(false);
+        return deleted;
     }
 
     protected static IEnumerable<ulong> GetIDs(string content)
