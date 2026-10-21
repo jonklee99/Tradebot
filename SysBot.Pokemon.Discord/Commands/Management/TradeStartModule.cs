@@ -101,6 +101,7 @@ public class TradeStartModule<T> : ModuleBase<SocketCommandContext> where T : PK
                 PokeTradeType.Dump => "Pokémon Dump",
                 PokeTradeType.FixOT => "Cloned Pokémon (Fixing OT Info)",
                 PokeTradeType.Seed => "Cloned Pokémon (Special Request)",
+                PokeTradeType.TouchTrade => $"Touch Trade ({speciesName})",
                 _ => speciesName
             };
 

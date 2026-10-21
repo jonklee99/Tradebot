@@ -46,7 +46,8 @@ public sealed class SysCord<T> where T : PKM, new()
         "egg", "Egg", "hidetrade", "ht", "batchTrade", "bt", "listevents", "le",
         "eventrequest", "er", "battlereadylist", "brl", "battlereadyrequest", "brr", "pokepaste", "pp",
         "PokePaste", "PP", "randomteam", "rt", "RandomTeam", "Rt", "specialrequestpokemon", "srp",
-        "queueStatus", "qs", "queueClear", "qc", "ts", "tc", "deleteTradeCode", "dtc", "mysteryegg", "me"
+        "queueStatus", "qs", "queueClear", "qc", "ts", "tc", "deleteTradeCode", "dtc", "mysteryegg", "me",
+        "touchtrade", "tt"
     ];
 
     private readonly DiscordManager Manager;

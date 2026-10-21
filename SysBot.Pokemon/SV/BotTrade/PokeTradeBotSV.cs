@@ -326,8 +326,8 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             var newEC = await SwitchConnection.ReadBytesAbsoluteAsync(BoxStartOffset, 8, token).ConfigureAwait(false);
             if (!newEC.SequenceEqual(oldEC))
             {
-                // Check if partner offered a Pokemon that will evolve
-                if (Hub.Config.Trade.TradeConfiguration.DisallowTradeEvolve)
+                // Check if partner offered a Pokemon that will evolve. Touch Trades expect evolutions.
+                if (Hub.Config.Trade.TradeConfiguration.DisallowTradeEvolve && detail.Type != PokeTradeType.TouchTrade)
                 {
                     var offered = await ReadUntilPresent(TradePartnerOfferedOffset, 2_000, 0_500, BoxFormatSlotSize, token).ConfigureAwait(false);
                     if (offered != null && TradeEvolutions.WillTradeEvolve(offered.Species, offered.Form, offered.HeldItem, detail.TradeData.Species))
@@ -1285,6 +1285,9 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
         if (poke.Type == PokeTradeType.Batch)
             return await PerformBatchTrade(sav, poke, token).ConfigureAwait(false);
 
+        if (poke.Type == PokeTradeType.TouchTrade)
+            return await PerformTouchTrade(sav, poke, token).ConfigureAwait(false);
+
         return await PerformNonBatchTrade(sav, poke, token).ConfigureAwait(false);
     }
 
@@ -1545,6 +1548,223 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
 
         await ExitTradeToPortal(false, token).ConfigureAwait(false);
         return PokeTradeResult.Success;
+    }
+
+    // Touch Trade: the bot sends a random Pokémon, receives one that evolves by trade, lets it evolve,
+    // then trades the evolved Pokémon back to the user in a second trade within the same session.
+    private async Task<PokeTradeResult> PerformTouchTrade(SAV9SV sav, PokeTradeDetail<PK9> poke, CancellationToken token)
+    {
+        var toSend = poke.TradeData;
+        await SetBoxPokemonAbsolute(BoxStartOffset, toSend, token, sav).ConfigureAwait(false);
+
+        // Search for a trade partner for a Link Trade.
+        await Click(A, 0_500, token).ConfigureAwait(false);
+        await Click(A, 0_500, token).ConfigureAwait(false);
+
+        // Clear it so we can detect it loading.
+        await ClearTradePartnerNID(TradePartnerNIDOffset, token).ConfigureAwait(false);
+
+        // Wait for Barrier to trigger all bots simultaneously.
+        WaitAtBarrierIfApplicable(token);
+        await Click(A, 1_000, token).ConfigureAwait(false);
+
+        poke.TradeSearching(this);
+        var partnerFound = await WaitForTradePartner(token).ConfigureAwait(false);
+
+        if (token.IsCancellationRequested)
+        {
+            StartFromOverworld = true;
+            LastTradeDistributionFixed = false;
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.RoutineCancel;
+        }
+        if (!partnerFound)
+        {
+            poke.IsProcessing = false;
+            poke.SendNotification(this, "No trading partner found. Canceling the trade.");
+            poke.TradeCanceled(this, PokeTradeResult.NoTrainerFound);
+
+            if (!await RecoverToPortal(token).ConfigureAwait(false))
+            {
+                Log("Failed to recover to portal.");
+                await RecoverToOverworld(token).ConfigureAwait(false);
+            }
+            return PokeTradeResult.NoTrainerFound;
+        }
+
+        Hub.Config.Stream.EndEnterCode(this);
+
+        // Wait until we get into the box.
+        var cnt = 0;
+        while (!await IsInBox(PortalOffset, token).ConfigureAwait(false))
+        {
+            await Task.Delay(0_500, token).ConfigureAwait(false);
+            if (++cnt > 20) // Didn't make it in after 10 seconds.
+            {
+                await Click(A, 1_000, token).ConfigureAwait(false); // Ensures we dismiss a popup.
+                if (!await RecoverToPortal(token).ConfigureAwait(false))
+                {
+                    Log("Failed to recover to portal.");
+                    await RecoverToOverworld(token).ConfigureAwait(false);
+                }
+                return PokeTradeResult.RecoverOpenBox;
+            }
+        }
+        await Task.Delay(3_000 + Hub.Config.Timings.ExtraTimeOpenBox, token).ConfigureAwait(false);
+
+        var tradePartnerFullInfo = await GetTradePartnerFullInfo(token).ConfigureAwait(false);
+        var tradePartner = new TradePartnerSV(tradePartnerFullInfo);
+        var trainerNID = await GetTradePartnerNID(TradePartnerNIDOffset, token).ConfigureAwait(false);
+        RecordUtil<PokeTradeBotSV>.Record($"Initiating\t{trainerNID:X16}\t{tradePartner.TrainerName}\t{poke.Trainer.TrainerName}\t{poke.Trainer.ID}\t{poke.ID}\t{toSend.EncryptionConstant:X8}");
+        Log($"Found Link Trade partner: {tradePartner.TrainerName}-{tradePartner.TID7} (ID: {trainerNID})");
+        poke.SendNotification(this, $"Found Link Trade partner: {tradePartner.TrainerName}. TID: {tradePartner.TID7} SID: {tradePartner.SID7}\n**Touch Trade:** offer the Pokémon you want to evolve by trade. I'll send it back once it evolves.");
+
+        var partnerCheck = CheckPartnerReputation(this, poke, trainerNID, tradePartner.TrainerName, AbuseSettings, token);
+        if (partnerCheck != PokeTradeResult.Success)
+        {
+            await Click(A, 1_000, token).ConfigureAwait(false); // Ensures we dismiss a popup.
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return partnerCheck;
+        }
+
+        // Hard check to verify that the offset changed from the last thing offered from the previous trade.
+        var tradeOffered = await ReadUntilChanged(TradePartnerOfferedOffset, lastOffered, 10_000, 0_500, false, true, token).ConfigureAwait(false);
+        if (!tradeOffered)
+        {
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.TrainerTooSlow;
+        }
+
+        if (Hub.Config.Legality.UseTradePartnerInfo && !poke.IgnoreAutoOT)
+        {
+            toSend = await ApplyAutoOT(toSend, tradePartnerFullInfo, sav, token);
+            poke.TradeData = toSend;
+        }
+
+        // Trade 1: random Pokémon for the user's trade evolution Pokémon.
+        var offered = await ReadUntilPresent(TradePartnerOfferedOffset, 25_000, 1_000, BoxFormatSlotSize, token).ConfigureAwait(false);
+        if (offered == null || offered.Species == 0 || !offered.ChecksumValid)
+        {
+            Log("Trade ended because a valid Pokémon was not offered.");
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.TrainerTooSlow;
+        }
+        var offeredEC = await SwitchConnection.ReadBytesAbsoluteAsync(TradePartnerOfferedOffset, 8, token).ConfigureAwait(false);
+
+        var offeredName = GameInfo.GetStrings("en").Species[offered.Species];
+        if (!TradeEvolutions.WillTradeEvolve(offered.Species, offered.Form, offered.HeldItem, toSend.Species))
+        {
+            Log($"Touch Trade cancelled: offered {offeredName} will not evolve by trade.");
+            poke.SendNotification(this, $"Trade cancelled. Your {offeredName} won't evolve by trading. If it needs a held item to evolve, give it that item, and make sure it isn't holding an Everstone.");
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.TrainerRequestBad;
+        }
+
+        Log($"Confirming Touch Trade 1/2 (receiving {offeredName}).");
+        var tradeResult = await ConfirmAndStartTrading(poke, token).ConfigureAwait(false);
+        if (tradeResult != PokeTradeResult.Success)
+        {
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return tradeResult;
+        }
+
+        if (token.IsCancellationRequested)
+        {
+            StartFromOverworld = true;
+            LastTradeDistributionFixed = false;
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.RoutineCancel;
+        }
+
+        var received = await ReadPokemon(BoxStartOffset, BoxFormatSlotSize, token).ConfigureAwait(false);
+        if (SearchUtil.HashByDetails(received) == SearchUtil.HashByDetails(toSend) && received.Checksum == toSend.Checksum)
+        {
+            Log("User did not complete Touch Trade 1/2.");
+            await ExitTradeToPortal(false, token).ConfigureAwait(false);
+            return PokeTradeResult.TrainerTooSlow;
+        }
+
+        // From here on we're holding the user's Pokémon, so every failure path must hand it back as a file.
+        var evolved = await WaitForTradeEvolution(offered, token).ConfigureAwait(false);
+        UpdateCountsAndExport(poke, evolved, toSend);
+        LogSuccessfulTrades(poke, trainerNID, tradePartner.TrainerName);
+
+        var evolvedName = GameInfo.GetStrings("en").Species[evolved.Species];
+        poke.SendNotification(this, evolved.Species != offered.Species
+            ? $"Your {offeredName} evolved into {evolvedName}! **Offer any Pokémon** to receive it back."
+            : $"Your {offeredName} didn't evolve on my side. **Offer any Pokémon** to receive it back.");
+
+        // Trade 2: the evolved Pokémon (already sitting in B1S1) for anything the user offers.
+        poke.TradeData = evolved;
+        var newOffer = await ReadUntilChanged(TradePartnerOfferedOffset, offeredEC, 30_000, 0_500, false, true, token).ConfigureAwait(false);
+        var offered2 = newOffer ? await ReadUntilPresent(TradePartnerOfferedOffset, 25_000, 1_000, BoxFormatSlotSize, token).ConfigureAwait(false) : null;
+        if (offered2 == null || offered2.Species == 0 || !offered2.ChecksumValid)
+        {
+            Log("Touch Trade 2/2: a valid Pokémon was not offered.");
+            return await FailTouchTradeReturn(poke, evolved, PokeTradeResult.TrainerTooSlow, token).ConfigureAwait(false);
+        }
+
+        Log("Confirming Touch Trade 2/2 (returning the evolved Pokémon).");
+        tradeResult = await ConfirmAndStartTrading(poke, token).ConfigureAwait(false);
+        if (tradeResult != PokeTradeResult.Success)
+            return await FailTouchTradeReturn(poke, evolved, tradeResult, token).ConfigureAwait(false);
+
+        var received2 = await ReadPokemon(BoxStartOffset, BoxFormatSlotSize, token).ConfigureAwait(false);
+        if (SearchUtil.HashByDetails(received2) == SearchUtil.HashByDetails(evolved) && received2.Checksum == evolved.Checksum)
+        {
+            Log("User did not complete Touch Trade 2/2.");
+            return await FailTouchTradeReturn(poke, evolved, PokeTradeResult.TrainerTooSlow, token).ConfigureAwait(false);
+        }
+
+        // The user may have offered another trade evolution Pokémon. Let it finish evolving before leaving the box.
+        if (TradeEvolutions.WillTradeEvolve(offered2.Species, offered2.Form, offered2.HeldItem, evolved.Species))
+            received2 = await WaitForTradeEvolution(offered2, token).ConfigureAwait(false);
+
+        Log("User completed the Touch Trade.");
+        poke.TradeFinished(this, received2);
+
+        if (DumpSetting.Dump && !string.IsNullOrEmpty(DumpSetting.DumpFolder))
+            DumpPokemon(DumpSetting.DumpFolder, "touchtrade", received2);
+
+        lastOffered = await SwitchConnection.ReadBytesAbsoluteAsync(TradePartnerOfferedOffset, 8, token).ConfigureAwait(false);
+        await ExitTradeToPortal(false, token).ConfigureAwait(false);
+        return PokeTradeResult.Success;
+    }
+
+    // Waits for the Pokémon received in B1S1 to finish its trade evolution, and returns whatever B1S1 holds afterwards.
+    private async Task<PK9> WaitForTradeEvolution(PK9 offered, CancellationToken token)
+    {
+        const int maxWaitMs = 60_000;
+        const int dismissPromptsAfterMs = 40_000;
+
+        var current = await ReadPokemon(BoxStartOffset, BoxFormatSlotSize, token).ConfigureAwait(false);
+        for (int elapsed = 0; elapsed < maxWaitMs; elapsed += 1_000)
+        {
+            var inBox = await IsInBox(PortalOffset, token).ConfigureAwait(false);
+            current = await ReadPokemon(BoxStartOffset, BoxFormatSlotSize, token).ConfigureAwait(false);
+            if (inBox && current.EncryptionConstant == offered.EncryptionConstant && current.Species != offered.Species)
+            {
+                Log($"Trade evolution finished: {GameInfo.GetStrings("en").Species[offered.Species]} -> {GameInfo.GetStrings("en").Species[current.Species]}.");
+                return current;
+            }
+
+            // Still outside the box well after the evolution should have ended: decline any "learn a new move?" prompt.
+            if (!inBox && elapsed >= dismissPromptsAfterMs)
+                await Click(B, 1_000, token).ConfigureAwait(false);
+            else
+                await Task.Delay(1_000, token).ConfigureAwait(false);
+        }
+
+        Log("Timed out waiting for the trade evolution to finish.");
+        return current;
+    }
+
+    private async Task<PokeTradeResult> FailTouchTradeReturn(PokeTradeDetail<PK9> poke, PK9 evolved, PokeTradeResult result, CancellationToken token)
+    {
+        Log($"Touch Trade: could not return the Pokémon to the user ({result}).");
+        poke.SendNotification(this, evolved, "I couldn't trade your Pokémon back, so here is its file. You can use it to request it again with a regular trade.");
+        await ExitTradeToPortal(false, token).ConfigureAwait(false);
+        return result;
     }
 
     private async Task HandleAbortedBatchTrade(PokeTradeDetail<PK9> detail, PokeRoutineType type, uint priority, PokeTradeResult result, CancellationToken token)

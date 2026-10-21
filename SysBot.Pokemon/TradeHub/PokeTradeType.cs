@@ -15,4 +15,6 @@ public enum PokeTradeType
     FixOT,
 
     Dump,
+
+    TouchTrade,
 }
