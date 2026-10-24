@@ -215,6 +215,22 @@ public abstract class PokeRoutineExecutor9SV : PokeRoutineExecutor<PK9>
 
     public async Task StartGame(PokeTradeHubConfig config, CancellationToken token)
     {
+        const int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            if (await TryStartGame(config, token).ConfigureAwait(false))
+                return;
+
+            // Stuck on a prompt we can't safely click through (AvoidSystemUpdate), so close the game and launch it again.
+            Log($"Game did not load (attempt {attempt} of {maxAttempts}). Closing and relaunching the game...");
+            await CloseGame(config, token).ConfigureAwait(false);
+        }
+
+        throw new Exception($"Game failed to reach the overworld after {maxAttempts} launch attempts. Check the console for an unexpected prompt.");
+    }
+
+    private async Task<bool> TryStartGame(PokeTradeHubConfig config, CancellationToken token)
+    {
         TimingSettings timing = config.Timings;
         int loadPro = timing.ProfileSelectionRequired ? timing.ExtraTimeLoadProfile : 0;
 
@@ -269,10 +285,15 @@ public abstract class PokeRoutineExecutor9SV : PokeRoutineExecutor<PK9>
 
                 break;
             }
+
+            // Without the rescue protocol we would wait here forever, so give up after 3 minutes and let the caller relaunch.
+            if (timer <= -120_000)
+                return false;
         }
 
         await Task.Delay(5_000 + timing.ExtraTimeLoadOverworld, token).ConfigureAwait(false);
         Log("Back in the overworld!");
+        return true;
     }
 
     protected virtual async Task EnterLinkCode(int code, PokeTradeHubConfig config, CancellationToken token)

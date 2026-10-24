@@ -523,21 +523,21 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
         while (await IsInBox(PortalOffset, token).ConfigureAwait(false))
         {
             await Click(B, 1_000, token).ConfigureAwait(false);
-            if (!await IsInBox(PortalOffset, token).ConfigureAwait(false))
+            if (await WaitForBoxExit(token).ConfigureAwait(false))
             {
                 await Task.Delay(1_000, token).ConfigureAwait(false);
                 break;
             }
 
             await Click(A, 1_000, token).ConfigureAwait(false);
-            if (!await IsInBox(PortalOffset, token).ConfigureAwait(false))
+            if (await WaitForBoxExit(token).ConfigureAwait(false))
             {
                 await Task.Delay(1_000, token).ConfigureAwait(false);
                 break;
             }
 
             await Click(B, 1_000, token).ConfigureAwait(false);
-            if (!await IsInBox(PortalOffset, token).ConfigureAwait(false))
+            if (await WaitForBoxExit(token).ConfigureAwait(false))
             {
                 await Task.Delay(1_000, token).ConfigureAwait(false);
                 break;
@@ -549,7 +549,8 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
                 Log("Failed to exit box, rebooting the game.");
                 if (!await RecoverToOverworld(token).ConfigureAwait(false))
                     await RestartGameSV(token).ConfigureAwait(false);
-                await ConnectAndEnterPortal(token).ConfigureAwait(false);
+                // Already back in the Portal, so the next trade shouldn't back out and re-enter it.
+                StartFromOverworld = !await ConnectAndEnterPortal(token).ConfigureAwait(false);
                 return;
             }
         }
@@ -566,10 +567,11 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             // Didn't make it into the portal for some reason.
             if (++attempts > 40)
             {
-                Log("Failed to load the portal, rebooting the game.");
+                Log("Failed to load the portal, returning to the overworld to reopen it.");
                 if (!await RecoverToOverworld(token).ConfigureAwait(false))
                     await RestartGameSV(token).ConfigureAwait(false);
-                await ConnectAndEnterPortal(token).ConfigureAwait(false);
+                // Already back in the Portal, so the next trade shouldn't back out and re-enter it.
+                StartFromOverworld = !await ConnectAndEnterPortal(token).ConfigureAwait(false);
                 return;
             }
         }
@@ -1905,8 +1907,9 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
             }
         }
 
-        // We didn't make it for some reason - restart the game
-        if (!await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+        // We didn't make it for some reason - restart the game.
+        // The overworld flag can flicker while menus close, so give it a moment to settle before deciding.
+        if (!await WaitForOverworld(3_000, token).ConfigureAwait(false))
         {
             Log("Failed to recover to overworld via navigation. Rebooting the game...");
             await RestartGameSV(token).ConfigureAwait(false);
@@ -1928,6 +1931,29 @@ public class PokeTradeBotSV(PokeTradeHub<PK9> Hub, PokeBotState Config) : PokeRo
 
         Log("Successfully recovered to overworld and reset state.");
         return true;
+    }
+
+    private async Task<bool> WaitForOverworld(int timeoutMs, CancellationToken token)
+    {
+        for (int waited = 0; waited < timeoutMs; waited += 0_250)
+        {
+            if (await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false))
+                return true;
+            await Task.Delay(0_250, token).ConfigureAwait(false);
+        }
+        return await IsOnOverworld(OverworldOffset, token).ConfigureAwait(false);
+    }
+
+    // The box status can lag behind the screen, so wait briefly for it to change before pressing more buttons.
+    private async Task<bool> WaitForBoxExit(CancellationToken token)
+    {
+        for (int waited = 0; waited < 2_000; waited += 0_250)
+        {
+            if (!await IsInBox(PortalOffset, token).ConfigureAwait(false))
+                return true;
+            await Task.Delay(0_250, token).ConfigureAwait(false);
+        }
+        return false;
     }
 
     // If we didn't find a trainer, we're still in the portal but there can be
