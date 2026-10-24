@@ -273,6 +273,12 @@ public abstract class PokeRoutineExecutor9SV : PokeRoutineExecutor<PK9>
         {
             await Task.Delay(1_000, token).ConfigureAwait(false);
             timer -= 1_000;
+
+            // The initial A presses can land before the title screen appears if the game is slow to load.
+            // Once SV itself is the running title we're past any system update prompt, so pressing A is safe.
+            if (timer % 5_000 == 0 && await SwitchConnection.GetTitleID(token).ConfigureAwait(false) is ScarletID or VioletID)
+                await Click(A, 1_000, token).ConfigureAwait(false);
+
             // We haven't made it back to overworld after a minute, so press A every 6 seconds hoping to restart the game.
             // Don't risk it if hub is set to avoid updates.
             if (timer <= 0 && !timing.AvoidSystemUpdate)
